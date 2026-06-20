@@ -1,0 +1,1240 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>De la salle au domaine — Le jeu de carrière du vin</title>
+<style>
+  /* ============================================================
+     Design tokens — "a cellar at night, read by candle on a label"
+     ============================================================ */
+  :root{
+    --ground:#2B0A12;        /* deep cellar wine            */
+    --ground-2:#1c060c;      /* darker pour                 */
+    --panel:#3a121c;         /* raised wine panel           */
+    --parchment:#F3E7D3;     /* label paper / main text     */
+    --parchment-dim:#cdbb9f; /* muted parchment             */
+    --gold:#C9A24B;          /* foil accent                 */
+    --gold-soft:#e0c479;     /* lighter foil                */
+    --bordeaux:#7B1E2B;      /* secondary wine red          */
+    --green:#5f7d4f;         /* correct                     */
+    --red:#b5402f;           /* wrong                       */
+    --line:rgba(201,162,75,.28);
+    --shadow:rgba(0,0,0,.45);
+    --radius:16px;
+    --serif:"Palatino Linotype","Book Antiqua",Palatino,Georgia,"Times New Roman",serif;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;margin:0}
+  body{
+    font-family:var(--sans);color:var(--parchment);
+    background:
+      radial-gradient(1100px 680px at 78% -12%, #4a1320 0%, transparent 58%),
+      radial-gradient(900px 620px at -8% 112%, #43101c 0%, transparent 55%),
+      linear-gradient(168deg, var(--ground) 0%, var(--ground-2) 100%);
+    background-attachment:fixed;
+    -webkit-font-smoothing:antialiased;
+    min-height:100%;
+    overflow-x:hidden;
+  }
+  /* faint label grain */
+  body::before{
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.04;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  }
+  .wrap{position:relative;z-index:1;max-width:760px;margin:0 auto;padding:16px 16px 48px;min-height:100vh;display:flex;flex-direction:column}
+
+  /* ---------- top bar ---------- */
+  .topbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
+  .logo{display:flex;align-items:center;gap:10px;min-width:0}
+  .logo .mark{width:34px;height:34px;flex:0 0 auto}
+  .logo h1{font-family:var(--serif);font-size:clamp(15px,3.4vw,19px);margin:0;font-weight:600;
+    letter-spacing:.4px;color:var(--gold-soft);line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .lang{display:flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;flex:0 0 auto;background:rgba(0,0,0,.2)}
+  .lang button{appearance:none;border:0;background:transparent;color:var(--parchment-dim);
+    font-family:var(--sans);font-size:13px;font-weight:600;letter-spacing:.5px;padding:7px 13px;cursor:pointer;transition:.18s}
+  .lang button.on{background:var(--gold);color:#2a1207}
+  .lang button:not(.on):hover{color:var(--parchment)}
+
+  /* ---------- screens ---------- */
+  .screen{display:none;animation:rise .4s ease both;flex:1 1 auto}
+  .screen.active{display:block}
+  @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  @media (prefers-reduced-motion:reduce){
+    .screen,.card,*{animation:none !important;transition:none !important}
+  }
+
+  .card{background:linear-gradient(180deg, var(--panel), #310e18);
+    border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:0 22px 44px -22px var(--shadow), inset 0 1px 0 rgba(255,255,255,.04);
+    padding:20px;position:relative}
+  .card + .card{margin-top:14px}
+
+  /* hero */
+  .hero{text-align:center;padding:30px 22px 26px}
+  .hero .crest{width:96px;height:96px;margin:2px auto 6px;display:block}
+  .hero h2{font-family:var(--serif);font-size:clamp(28px,7vw,42px);margin:.1em 0 .15em;color:var(--parchment);
+    font-weight:600;letter-spacing:.5px;line-height:1.05}
+  .hero .kicker{font-size:12px;letter-spacing:3px;text-transform:uppercase;color:var(--gold);margin-bottom:2px}
+  .hero p.lead{color:var(--parchment-dim);font-size:15px;line-height:1.55;max-width:46ch;margin:10px auto 0}
+
+  /* stage ribbon on home */
+  .ladder{display:flex;flex-direction:column;gap:8px;margin-top:18px;text-align:left}
+  .ladder .rung{display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--line);
+    border-radius:12px;background:rgba(0,0,0,.16)}
+  .ladder .rung .n{font-family:var(--serif);font-size:18px;color:var(--gold);width:24px;text-align:center;flex:0 0 auto;font-style:italic}
+  .ladder .rung .t{font-weight:600;font-size:14px}
+  .ladder .rung .d{font-size:12.5px;color:var(--parchment-dim);margin-top:1px}
+
+  /* buttons */
+  .btn{appearance:none;cursor:pointer;font-family:var(--sans);font-weight:700;font-size:16px;
+    border-radius:12px;padding:15px 18px;border:1px solid transparent;width:100%;transition:.15s;letter-spacing:.3px}
+  .btn:active{transform:translateY(1px)}
+  .btn-primary{background:linear-gradient(180deg,var(--gold-soft),var(--gold));color:#2a1207;
+    box-shadow:0 8px 18px -8px rgba(201,162,75,.6)}
+  .btn-primary:hover{filter:brightness(1.05)}
+  .btn-ghost{background:transparent;color:var(--parchment);border-color:var(--line)}
+  .btn-ghost:hover{border-color:var(--gold);color:var(--gold-soft)}
+  .btn-row{display:flex;gap:10px;margin-top:14px}
+  .btn-row .btn{margin:0}
+
+  /* ---------- setup ---------- */
+  .sec-title{font-family:var(--serif);font-size:22px;color:var(--parchment);margin:0 0 4px;font-weight:600}
+  .sec-sub{font-size:13px;color:var(--parchment-dim);margin:0 0 16px}
+
+  .players-list{display:flex;flex-direction:column;gap:10px;margin-bottom:14px}
+  .player-chip{display:flex;align-items:center;gap:12px;padding:8px 10px;border:1px solid var(--line);
+    border-radius:12px;background:rgba(0,0,0,.18)}
+  .player-chip .av{width:46px;height:54px;flex:0 0 auto}
+  .player-chip .nm{font-weight:600;flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .player-chip .x{appearance:none;border:1px solid var(--line);background:transparent;color:var(--parchment-dim);
+    border-radius:9px;width:34px;height:34px;font-size:18px;cursor:pointer;flex:0 0 auto}
+  .player-chip .x:hover{color:var(--red);border-color:var(--red)}
+  .empty-hint{color:var(--parchment-dim);font-size:13.5px;text-align:center;padding:14px 0;font-style:italic}
+
+  /* avatar builder */
+  .builder{display:grid;grid-template-columns:160px 1fr;gap:18px;align-items:start}
+  @media (max-width:520px){.builder{grid-template-columns:1fr;justify-items:center}}
+  .preview-box{background:radial-gradient(120px 120px at 50% 35%, rgba(201,162,75,.16), transparent 70%);
+    border:1px solid var(--line);border-radius:14px;padding:8px;width:160px}
+  .preview-box svg{display:block;width:100%;height:auto}
+  .builder .controls{width:100%}
+  label.field{display:block;margin-bottom:14px}
+  label.field .lab{font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:var(--gold);margin-bottom:7px;display:block}
+  input.name{width:100%;font-family:var(--sans);font-size:16px;padding:13px 14px;border-radius:11px;
+    border:1px solid var(--line);background:rgba(0,0,0,.25);color:var(--parchment)}
+  input.name::placeholder{color:var(--parchment-dim)}
+  input.name:focus{outline:2px solid var(--gold);outline-offset:0;border-color:transparent}
+
+  .opt-row{display:flex;flex-wrap:wrap;gap:8px}
+  .opt{appearance:none;cursor:pointer;border:1px solid var(--line);background:rgba(0,0,0,.2);
+    color:var(--parchment);border-radius:10px;padding:9px 13px;font-size:13.5px;font-weight:600;font-family:var(--sans);transition:.14s}
+  .opt:hover{border-color:var(--gold)}
+  .opt.on{background:var(--gold);color:#2a1207;border-color:var(--gold)}
+  .swatches{display:flex;flex-wrap:wrap;gap:9px}
+  .swatch{width:34px;height:34px;border-radius:50%;cursor:pointer;border:2px solid transparent;
+    box-shadow:0 0 0 1px var(--line);transition:.14s}
+  .swatch.on{border-color:var(--parchment);box-shadow:0 0 0 2px var(--gold)}
+
+  /* ---------- handoff ---------- */
+  .handoff{text-align:center;padding:34px 22px}
+  .handoff .pass{font-size:12px;letter-spacing:3px;text-transform:uppercase;color:var(--gold)}
+  .handoff .who{font-family:var(--serif);font-size:clamp(30px,8vw,46px);margin:6px 0 2px;color:var(--parchment)}
+  .handoff .av{width:150px;height:auto;margin:14px auto 6px;display:block}
+  .handoff .role{color:var(--gold-soft);font-size:15px;margin-bottom:6px}
+  .handoff p{color:var(--parchment-dim);font-size:14px;max-width:40ch;margin:8px auto 0;line-height:1.5}
+
+  /* ---------- game hud ---------- */
+  .hud{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+  .hud .pl{display:flex;align-items:center;gap:10px;min-width:0}
+  .hud .pl .av{width:52px;height:62px;flex:0 0 auto}
+  .hud .pl .meta{min-width:0}
+  .hud .pl .meta .nm{font-weight:700;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .hud .pl .meta .role{font-size:12px;color:var(--gold-soft)}
+  .lives{display:flex;gap:4px;flex:0 0 auto}
+  .lives .b{font-size:20px;line-height:1;filter:grayscale(0)}
+  .lives .b.lost{opacity:.22;filter:grayscale(1)}
+
+  /* progress ladder */
+  .progress{display:flex;gap:6px;margin-bottom:16px}
+  .progress .step{flex:1;height:8px;border-radius:6px;background:rgba(255,255,255,.08);position:relative;overflow:hidden}
+  .progress .step.done{background:var(--gold)}
+  .progress .step.cur{background:linear-gradient(90deg,var(--gold) 0%, rgba(201,162,75,.25) 0%)}
+  .progress-labels{display:flex;gap:6px;margin:-10px 0 16px}
+  .progress-labels span{flex:1;text-align:center;font-size:10.5px;letter-spacing:.5px;color:var(--parchment-dim);text-transform:uppercase}
+  .progress-labels span.cur{color:var(--gold)}
+
+  .qmeta{display:flex;justify-content:space-between;font-size:12px;color:var(--parchment-dim);margin-bottom:8px;letter-spacing:.5px}
+  .qmeta b{color:var(--gold-soft)}
+  .question{font-family:var(--serif);font-size:clamp(19px,4.6vw,24px);line-height:1.35;margin:0 0 18px;color:var(--parchment)}
+
+  .answers{display:flex;flex-direction:column;gap:11px}
+  .answer{appearance:none;cursor:pointer;text-align:left;font-family:var(--sans);font-size:16px;line-height:1.35;
+    color:var(--parchment);background:rgba(0,0,0,.22);border:1px solid var(--line);border-radius:12px;
+    padding:15px 16px;transition:.14s;width:100%;display:flex;align-items:center;gap:12px}
+  .answer .key{font-family:var(--serif);font-style:italic;color:var(--gold);flex:0 0 auto;font-size:17px}
+  .answer:not(:disabled):hover{border-color:var(--gold);background:rgba(201,162,75,.08)}
+  .answer:disabled{cursor:default}
+  .answer.correct{border-color:var(--green);background:rgba(95,125,79,.22)}
+  .answer.wrong{border-color:var(--red);background:rgba(181,64,47,.2)}
+  .answer.correct .key{color:#bfe3a6}
+  .answer.wrong .key{color:#f0a99c}
+
+  .feedback{margin-top:16px;border-radius:12px;padding:14px 16px;border:1px solid var(--line);
+    background:rgba(0,0,0,.22);animation:rise .25s ease both}
+  .feedback .verdict{font-family:var(--serif);font-size:18px;font-weight:600;margin-bottom:4px;display:flex;align-items:center;gap:8px}
+  .feedback.good .verdict{color:#bfe3a6}
+  .feedback.bad .verdict{color:#f0a99c}
+  .feedback .why{font-size:14px;line-height:1.5;color:var(--parchment-dim)}
+
+  /* ---------- stage clear / result / victory ---------- */
+  .center-pad{text-align:center;padding:30px 22px}
+  .center-pad .big{font-family:var(--serif);font-size:clamp(26px,7vw,40px);margin:8px 0 6px;color:var(--parchment)}
+  .center-pad .av{width:160px;height:auto;margin:10px auto;display:block}
+  .center-pad p{color:var(--parchment-dim);font-size:15px;line-height:1.55;max-width:42ch;margin:6px auto}
+  .score-pill{display:inline-flex;align-items:baseline;gap:8px;background:rgba(0,0,0,.28);border:1px solid var(--line);
+    border-radius:999px;padding:10px 20px;margin:12px auto 4px}
+  .score-pill .n{font-family:var(--serif);font-size:30px;color:var(--gold-soft)}
+  .score-pill .l{font-size:12px;letter-spacing:2px;text-transform:uppercase;color:var(--parchment-dim)}
+
+  /* ---------- leaderboard ---------- */
+  .lb{display:flex;flex-direction:column;gap:8px;margin-top:6px}
+  .lb .row{display:flex;align-items:center;gap:12px;padding:9px 12px;border:1px solid var(--line);
+    border-radius:12px;background:rgba(0,0,0,.18)}
+  .lb .row.top{border-color:var(--gold);background:rgba(201,162,75,.1)}
+  .lb .rank{font-family:var(--serif);font-style:italic;font-size:20px;color:var(--gold);width:30px;text-align:center;flex:0 0 auto}
+  .lb .av{width:38px;height:46px;flex:0 0 auto}
+  .lb .info{flex:1 1 auto;min-width:0}
+  .lb .info .nm{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .lb .info .sub{font-size:12px;color:var(--parchment-dim)}
+  .lb .sc{font-family:var(--serif);font-size:20px;color:var(--gold-soft);flex:0 0 auto}
+  .lb .sc .crown{font-size:14px}
+
+  .footnote{text-align:center;color:var(--parchment-dim);font-size:11.5px;margin-top:22px;line-height:1.5;opacity:.8}
+  .footnote a{color:var(--gold-soft)}
+
+  /* confetti canvas */
+  #confetti{position:fixed;inset:0;pointer-events:none;z-index:50;display:none}
+</style>
+</head>
+<body>
+<canvas id="confetti"></canvas>
+<div class="wrap">
+
+  <!-- ===================== TOP BAR ===================== -->
+  <div class="topbar">
+    <div class="logo">
+      <svg class="mark" viewBox="0 0 40 40" aria-hidden="true">
+        <path d="M12 4h16l-1 9a7 7 0 0 1-6 7v9h5v3H14v-3h5v-9a7 7 0 0 1-6-7z" fill="#C9A24B"/>
+        <path d="M14 6h12l-.5 6H14.5z" fill="#7B1E2B"/>
+      </svg>
+      <h1 data-i18n="appTitle">De la salle au domaine</h1>
+    </div>
+    <div class="lang" role="group" aria-label="Language">
+      <button id="lang-fr" class="on" onclick="setLang('fr')">FR</button>
+      <button id="lang-en" onclick="setLang('en')">EN</button>
+    </div>
+  </div>
+
+  <!-- ===================== HOME ===================== -->
+  <section id="screen-home" class="screen active">
+    <div class="card hero">
+      <svg class="crest" viewBox="0 0 120 120" aria-hidden="true">
+        <circle cx="60" cy="60" r="56" fill="none" stroke="#C9A24B" stroke-width="2" opacity=".5"/>
+        <path d="M44 22h32l-2 18a14 14 0 0 1-12 13v18h10v6H50v-6h10V53A14 14 0 0 1 48 40z" fill="#C9A24B"/>
+        <path d="M48 26h24l-1 11H49z" fill="#7B1E2B"/>
+        <path d="M30 92q30 14 60 0" fill="none" stroke="#C9A24B" stroke-width="2" opacity=".55"/>
+      </svg>
+      <div class="kicker" data-i18n="homeKicker">Le jeu de carrière du vin</div>
+      <h2 data-i18n="homeTitle">De la salle au domaine</h2>
+      <p class="lead" data-i18n="homeLead">Gravissez la carrière du vin en quatre étapes — de la salle à manger jusqu'à votre propre domaine. Passez le téléphone, répondez bien, et gardez vos bouteilles.</p>
+
+      <div class="ladder" id="home-ladder"></div>
+
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="goSetup()" data-i18n="homePlay">Nouvelle partie</button>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-ghost" onclick="showLeaderboard('home')" data-i18n="homeLeaderboard">Classement</button>
+      </div>
+    </div>
+    <p class="footnote" data-i18n="homeFoot">2 à 8 joueurs · même appareil · le classement reste sur cet appareil.</p>
+  </section>
+
+  <!-- ===================== SETUP ===================== -->
+  <section id="screen-setup" class="screen">
+    <div class="card">
+      <h3 class="sec-title" data-i18n="setupTitle">Qui joue ?</h3>
+      <p class="sec-sub" data-i18n="setupSub">Inscrivez de 2 à 8 joueurs. Chacun crée son personnage.</p>
+      <div class="players-list" id="players-list"></div>
+    </div>
+
+    <div class="card" id="builder-card">
+      <h3 class="sec-title" data-i18n="builderTitle">Nouveau joueur</h3>
+      <div class="builder">
+        <div class="preview-box"><div id="preview"></div></div>
+        <div class="controls">
+          <label class="field">
+            <span class="lab" data-i18n="fldName">Prénom</span>
+            <input class="name" id="in-name" maxlength="14" data-i18n-ph="phName" placeholder="Votre prénom" />
+          </label>
+          <label class="field">
+            <span class="lab" data-i18n="fldGender">Personnage</span>
+            <div class="opt-row" id="opt-gender"></div>
+          </label>
+          <label class="field">
+            <span class="lab" data-i18n="fldHair">Cheveux</span>
+            <div class="opt-row" id="opt-hair"></div>
+          </label>
+          <label class="field">
+            <span class="lab" data-i18n="fldHairColor">Couleur des cheveux</span>
+            <div class="swatches" id="opt-haircolor"></div>
+          </label>
+          <label class="field">
+            <span class="lab" data-i18n="fldSkin">Teint de peau</span>
+            <div class="swatches" id="opt-skin"></div>
+          </label>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="addPlayer()" data-i18n="btnAdd">Ajouter ce joueur</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="btn-row">
+        <button class="btn btn-ghost" onclick="goHome()" data-i18n="btnBack">Retour</button>
+        <button class="btn btn-primary" id="btn-start" onclick="startGame()" data-i18n="btnStart">Commencer</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== HANDOFF ===================== -->
+  <section id="screen-handoff" class="screen">
+    <div class="card handoff">
+      <div class="pass" data-i18n="handoffPass">Passez le téléphone à</div>
+      <div class="who" id="handoff-name">—</div>
+      <div id="handoff-av"></div>
+      <div class="role" id="handoff-role">—</div>
+      <p id="handoff-note"></p>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="beginRun()" data-i18n="handoffGo">Je suis prêt·e</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== GAME ===================== -->
+  <section id="screen-game" class="screen">
+    <div class="card">
+      <div class="hud">
+        <div class="pl">
+          <div class="av" id="game-av"></div>
+          <div class="meta">
+            <div class="nm" id="game-name">—</div>
+            <div class="role" id="game-role">—</div>
+          </div>
+        </div>
+        <div class="lives" id="game-lives"></div>
+      </div>
+      <div class="progress" id="game-progress"></div>
+      <div class="progress-labels" id="game-progress-labels"></div>
+
+      <div class="qmeta">
+        <span><b id="q-counter">1/5</b> <span data-i18n="qWord">questions</span></span>
+        <span><span data-i18n="needWord">Pour passer :</span> <b id="q-need">4/5</b></span>
+      </div>
+      <p class="question" id="q-text">—</p>
+      <div class="answers" id="q-answers"></div>
+      <div id="q-feedback"></div>
+      <div class="btn-row" id="q-next-row" style="display:none">
+        <button class="btn btn-primary" id="q-next" onclick="nextStep()">—</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== RESULT (per player) ===================== -->
+  <section id="screen-result" class="screen">
+    <div class="card center-pad">
+      <div class="kicker" id="result-kicker" style="color:var(--gold);letter-spacing:3px;text-transform:uppercase;font-size:12px"></div>
+      <div class="big" id="result-name">—</div>
+      <div id="result-av"></div>
+      <div class="role" id="result-role" style="color:var(--gold-soft);font-size:15px"></div>
+      <p id="result-msg"></p>
+      <div class="score-pill"><span class="n" id="result-score">0</span><span class="l" data-i18n="pts">points</span></div>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="result-next" onclick="afterResult()">—</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== VICTORY ===================== -->
+  <section id="screen-victory" class="screen">
+    <div class="card center-pad">
+      <div class="kicker" style="color:var(--gold);letter-spacing:3px;text-transform:uppercase;font-size:12px" data-i18n="winKicker">Le domaine est à vous</div>
+      <div class="big" id="win-name">—</div>
+      <div id="win-av"></div>
+      <p data-i18n="winMsg">Vous possédez désormais votre propre vignoble. Levez votre verre : la carrière est complète.</p>
+      <div class="score-pill"><span class="n" id="win-score">0</span><span class="l" data-i18n="pts">points</span></div>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="win-next" onclick="afterResult()">—</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== LEADERBOARD ===================== -->
+  <section id="screen-leaderboard" class="screen">
+    <div class="card">
+      <h3 class="sec-title" data-i18n="lbTitle">Classement</h3>
+      <p class="sec-sub" data-i18n="lbSub">Du meilleur au pire — gardé sur cet appareil.</p>
+      <div class="lb" id="lb-list"></div>
+      <div class="btn-row">
+        <button class="btn btn-ghost" id="lb-back" onclick="lbBack()" data-i18n="btnBack">Retour</button>
+        <button class="btn btn-ghost" onclick="resetLeaderboard()" data-i18n="lbReset">Réinitialiser</button>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+/* =================================================================
+   CONFIG — tweak the game balance here
+   ================================================================= */
+const CONFIG = {
+  questionsPerStage: 5,                 // questions drawn per stage
+  lives: 3,                             // "bottles" — wrong answers you can afford
+  thresholds: [3, 4, 4, 5],            // correct answers needed to clear each stage
+  pointsPerCorrect: stage => 10 * (stage + 1),  // worth more in later stages
+  stageBonus: stage => 100 * (stage + 1),       // big bonus for clearing a stage
+  victoryBonus: 500
+};
+
+const LB_KEY = "wineCareerLeaderboard.v1";
+
+/* =================================================================
+   AVATAR OPTIONS
+   ================================================================= */
+const GENDERS = ["masc", "fem", "neutral"];
+const HAIRSTYLES = ["short", "buzz", "long", "curly", "bun", "ponytail"];
+const HAIR_COLORS = ["#1A1A1A", "#3b2412", "#6b3f1d", "#a9692f", "#C9A24B", "#b8b3ab", "#7B1E2B", "#e8dcc0"];
+const SKIN_TONES  = ["#f7d8bd", "#f0c39d", "#e0a875", "#c68642", "#9c6437", "#6e4327", "#4a2c1a"];
+
+/* =================================================================
+   I18N — every interface string + every question
+   ================================================================= */
+const STAGES = {
+  fr: ["Restaurateur", "Importateur", "Vigneron", "Propriétaire de domaine"],
+  en: ["Restaurateur", "Importer", "Winemaker", "Estate Owner"]
+};
+const STAGE_DESC = {
+  fr: [
+    "Cépages courants, accords de base, service du vin.",
+    "Régions, appellations, étiquettes, millésimes.",
+    "Viticulture, vinification, terroir, défauts du vin.",
+    "Économie, classifications, vins rares, histoire."
+  ],
+  en: [
+    "Common grapes, basic pairings, serving wine.",
+    "Regions, appellations, labels, vintages.",
+    "Viticulture, winemaking, terroir, wine faults.",
+    "Economics, classifications, rare wines, history."
+  ]
+};
+
+const UI = {
+  appTitle:        {fr:"De la salle au domaine", en:"From Floor to Estate"},
+  homeKicker:      {fr:"Le jeu de carrière du vin", en:"The wine career game"},
+  homeTitle:       {fr:"De la salle au domaine", en:"From Floor to Estate"},
+  homeLead:        {fr:"Gravissez la carrière du vin en quatre étapes — de la salle à manger jusqu'à votre propre domaine. Passez le téléphone, répondez bien, et gardez vos bouteilles.",
+                    en:"Climb the wine trade in four stages — from the dining room to your own estate. Pass the phone, answer well, and hold on to your bottles."},
+  homePlay:        {fr:"Nouvelle partie", en:"New game"},
+  homeLeaderboard: {fr:"Classement", en:"Leaderboard"},
+  homeFoot:        {fr:"2 à 8 joueurs · même appareil · le classement reste sur cet appareil.",
+                    en:"2 to 8 players · one device · the leaderboard stays on this device."},
+
+  setupTitle:  {fr:"Qui joue ?", en:"Who's playing?"},
+  setupSub:    {fr:"Inscrivez de 2 à 8 joueurs. Chacun crée son personnage.",
+                en:"Add 2 to 8 players. Everyone builds their own character."},
+  builderTitle:{fr:"Nouveau joueur", en:"New player"},
+  fldName:     {fr:"Prénom", en:"First name"},
+  phName:      {fr:"Votre prénom", en:"Your name"},
+  fldGender:   {fr:"Personnage", en:"Character"},
+  fldHair:     {fr:"Cheveux", en:"Hair"},
+  fldHairColor:{fr:"Couleur des cheveux", en:"Hair colour"},
+  fldSkin:     {fr:"Teint de peau", en:"Skin tone"},
+  btnAdd:      {fr:"Ajouter ce joueur", en:"Add this player"},
+  btnBack:     {fr:"Retour", en:"Back"},
+  btnStart:    {fr:"Commencer", en:"Start"},
+
+  genderMasc:    {fr:"Masculin", en:"Masculine"},
+  genderFem:     {fr:"Féminin", en:"Feminine"},
+  genderNeutral: {fr:"Neutre", en:"Neutral"},
+  hairShort:   {fr:"Court", en:"Short"},
+  hairBuzz:    {fr:"Rasé", en:"Buzz"},
+  hairLong:    {fr:"Long", en:"Long"},
+  hairCurly:   {fr:"Bouclé", en:"Curly"},
+  hairBun:     {fr:"Chignon", en:"Bun"},
+  hairPonytail:{fr:"Queue", en:"Ponytail"},
+
+  emptyPlayers:{fr:"Aucun joueur pour l'instant.", en:"No players yet."},
+  needTwo:     {fr:"Il faut au moins 2 joueurs pour commencer.", en:"You need at least 2 players to start."},
+  needName:    {fr:"Donnez un prénom à ce joueur.", en:"Give this player a name."},
+  maxPlayers:  {fr:"Maximum de 8 joueurs atteint.", en:"Maximum of 8 players reached."},
+
+  handoffPass: {fr:"Passez le téléphone à", en:"Pass the phone to"},
+  handoffGo:   {fr:"Je suis prêt·e", en:"I'm ready"},
+  handoffNote: {fr:"On commence comme Restaurateur. Bonne chance !", en:"You start as Restaurateur. Good luck!"},
+
+  qWord:    {fr:"questions", en:"questions"},
+  needWord: {fr:"Pour passer :", en:"To advance:"},
+  continue: {fr:"Continuer", en:"Continue"},
+  seeResult:{fr:"Voir le résultat", en:"See result"},
+
+  good:     {fr:"Bonne réponse", en:"Correct"},
+  bad:      {fr:"Pas tout à fait", en:"Not quite"},
+
+  stageClearKick:{fr:"Étape franchie", en:"Stage cleared"},
+  stageClearMsg: {fr:"Vous montez d'un cran. Nouvelle tenue, questions plus corsées.",
+                  en:"You move up a rung. New outfit, tougher questions."},
+  nextStageBtn:  {fr:"Étape suivante", en:"Next stage"},
+
+  resultKickWin:  {fr:"Carrière complète", en:"Career complete"},
+  resultKickStop: {fr:"Fin du parcours", en:"End of the run"},
+  resultMsgOutBottles:{fr:"Plus de bouteilles. Le parcours s'arrête ici — pour cette fois.",
+                       en:"Out of bottles. The run ends here — for now."},
+  resultMsgOutThresh: {fr:"Pas assez de bonnes réponses pour franchir l'étape. Belle tentative !",
+                       en:"Not enough correct answers to clear the stage. Good effort!"},
+  resultReached:  {fr:"Étape atteinte :", en:"Reached:"},
+  nextPlayerBtn:  {fr:"Joueur suivant", en:"Next player"},
+  toResultsBtn:   {fr:"Voir le classement", en:"See the leaderboard"},
+  pts:            {fr:"points", en:"points"},
+
+  winKicker:{fr:"Le domaine est à vous", en:"The estate is yours"},
+  winMsg:   {fr:"Vous possédez désormais votre propre vignoble. Levez votre verre : la carrière est complète.",
+             en:"You now own your own vineyard. Raise a glass — the career is complete."},
+
+  lbTitle: {fr:"Classement", en:"Leaderboard"},
+  lbSub:   {fr:"Du meilleur au pire — gardé sur cet appareil.", en:"Best to worst — kept on this device."},
+  lbReset: {fr:"Réinitialiser", en:"Reset"},
+  lbEmpty: {fr:"Aucun score pour l'instant. À vous de jouer !", en:"No scores yet. Be the first!"},
+  lbConfirm:{fr:"Effacer tout le classement ?", en:"Clear the whole leaderboard?"},
+  lbReached:{fr:"a atteint", en:"reached"},
+  lbWon:    {fr:"Domaine !", en:"Estate!"},
+
+  homeFootCredit:{fr:"", en:""}
+};
+
+function t(key){ return (UI[key] && UI[key][LANG]) || key; }
+
+/* =================================================================
+   QUESTION BANK — 10 per stage, bilingual, factually checked.
+   correct = index of the right option.
+   ================================================================= */
+const BANK = [
+  /* ---------- STAGE 1 — RESTAURATEUR (accessible) ---------- */
+  [
+    { q:{fr:"Quel cépage rouge est le pilier de la Bourgogne ?", en:"Which red grape is the backbone of Burgundy?"},
+      o:[{fr:"Pinot Noir",en:"Pinot Noir"},{fr:"Cabernet Sauvignon",en:"Cabernet Sauvignon"},{fr:"Syrah",en:"Syrah"},{fr:"Merlot",en:"Merlot"}], correct:0,
+      e:{fr:"Les grands rouges de Bourgogne sont issus du Pinot Noir.", en:"Burgundy's great reds are made from Pinot Noir."} },
+    { q:{fr:"Le Chablis est élaboré à partir de quel cépage ?", en:"Chablis is made from which grape?"},
+      o:[{fr:"Chardonnay",en:"Chardonnay"},{fr:"Sauvignon Blanc",en:"Sauvignon Blanc"},{fr:"Riesling",en:"Riesling"},{fr:"Viognier",en:"Viognier"}], correct:0,
+      e:{fr:"Le Chablis est un Chardonnay du nord de la Bourgogne, vif et minéral.", en:"Chablis is a crisp, mineral Chardonnay from northern Burgundy."} },
+    { q:{fr:"À quelle température sert-on le mieux un vin rouge corsé ?", en:"What's the best serving temperature for a full-bodied red?"},
+      o:[{fr:"6–8 °C",en:"6–8 °C"},{fr:"16–18 °C",en:"16–18 °C"},{fr:"22–24 °C",en:"22–24 °C"},{fr:"30 °C",en:"30 °C"}], correct:1,
+      e:{fr:"Légèrement sous la température ambiante, autour de 16–18 °C.", en:"Slightly below room temperature, around 16–18 °C."} },
+    { q:{fr:"Le Beaujolais est principalement issu de quel cépage ?", en:"Beaujolais is mostly made from which grape?"},
+      o:[{fr:"Gamay",en:"Gamay"},{fr:"Pinot Noir",en:"Pinot Noir"},{fr:"Grenache",en:"Grenache"},{fr:"Tempranillo",en:"Tempranillo"}], correct:0,
+      e:{fr:"Le Gamay donne au Beaujolais son fruité et sa souplesse.", en:"Gamay gives Beaujolais its fruit and suppleness."} },
+    { q:{fr:"De quel pays vient le Champagne ?", en:"Which country does Champagne come from?"},
+      o:[{fr:"Italie",en:"Italy"},{fr:"Espagne",en:"Spain"},{fr:"France",en:"France"},{fr:"Allemagne",en:"Germany"}], correct:2,
+      e:{fr:"Le Champagne est une appellation protégée de France.", en:"Champagne is a protected appellation from France."} },
+    { q:{fr:"Le Sancerre blanc est issu de quel cépage ?", en:"White Sancerre is made from which grape?"},
+      o:[{fr:"Chardonnay",en:"Chardonnay"},{fr:"Sauvignon Blanc",en:"Sauvignon Blanc"},{fr:"Chenin Blanc",en:"Chenin Blanc"},{fr:"Sémillon",en:"Sémillon"}], correct:1,
+      e:{fr:"Sancerre, dans la Loire, est un Sauvignon Blanc vif et herbacé.", en:"Sancerre, in the Loire, is a crisp, herbaceous Sauvignon Blanc."} },
+    { q:{fr:"Que sert-on classiquement avec des huîtres fraîches ?", en:"What's the classic pairing with fresh oysters?"},
+      o:[{fr:"Un blanc sec et vif",en:"A crisp dry white"},{fr:"Un rouge tannique",en:"A tannic red"},{fr:"Un porto",en:"A port"},{fr:"Un rouge doux",en:"A sweet red"}], correct:0,
+      e:{fr:"Un blanc sec et vif (Muscadet, Chablis) sublime l'iode des huîtres.", en:"A crisp dry white (Muscadet, Chablis) lifts the briny oysters."} },
+    { q:{fr:"À quoi sert principalement le fait de décanter un vin ?", en:"What is decanting a wine mainly for?"},
+      o:[{fr:"Le refroidir",en:"To chill it"},{fr:"L'aérer et séparer le dépôt",en:"To aerate it and separate sediment"},{fr:"Le sucrer",en:"To sweeten it"},{fr:"Augmenter l'alcool",en:"To raise the alcohol"}], correct:1,
+      e:{fr:"On décante pour aérer le vin et le séparer de son dépôt.", en:"You decant to aerate the wine and leave the sediment behind."} },
+    { q:{fr:"Que décrit le mot « tannique » ?", en:"What does the word \"tannic\" describe?"},
+      o:[{fr:"Une douceur sucrée",en:"A sugary sweetness"},{fr:"Une sensation asséchante et astringente",en:"A drying, astringent feel"},{fr:"Des bulles",en:"Bubbles"},{fr:"Une forte acidité",en:"High acidity"}], correct:1,
+      e:{fr:"Les tanins donnent cette sensation râpeuse qui assèche la bouche.", en:"Tannins give that grippy feel that dries the mouth."} },
+    { q:{fr:"De quel pays vient le Prosecco ?", en:"Which country does Prosecco come from?"},
+      o:[{fr:"France",en:"France"},{fr:"Italie",en:"Italy"},{fr:"Portugal",en:"Portugal"},{fr:"Argentine",en:"Argentina"}], correct:1,
+      e:{fr:"Le Prosecco est un mousseux italien (cépage Glera, Vénétie).", en:"Prosecco is an Italian sparkling wine (Glera grape, Veneto)."} }
+  ],
+
+  /* ---------- STAGE 2 — IMPORTATEUR (intermediate) ---------- */
+  [
+    { q:{fr:"De quelle région italienne provient le Barolo ?", en:"Which Italian region does Barolo come from?"},
+      o:[{fr:"Toscane",en:"Tuscany"},{fr:"Piémont",en:"Piedmont"},{fr:"Vénétie",en:"Veneto"},{fr:"Sicile",en:"Sicily"}], correct:1,
+      e:{fr:"Le Barolo vient du Piémont, dans le nord-ouest de l'Italie.", en:"Barolo comes from Piedmont, in north-west Italy."} },
+    { q:{fr:"Quel cépage donne le Barolo ?", en:"Which grape makes Barolo?"},
+      o:[{fr:"Sangiovese",en:"Sangiovese"},{fr:"Nebbiolo",en:"Nebbiolo"},{fr:"Barbera",en:"Barbera"},{fr:"Montepulciano",en:"Montepulciano"}], correct:1,
+      e:{fr:"Le Barolo est un Nebbiolo, cépage tannique et parfumé.", en:"Barolo is made from Nebbiolo, a tannic, perfumed grape."} },
+    { q:{fr:"Dans quel pays se trouve la Rioja ?", en:"Which country is Rioja in?"},
+      o:[{fr:"Portugal",en:"Portugal"},{fr:"Espagne",en:"Spain"},{fr:"Argentine",en:"Argentina"},{fr:"Chili",en:"Chile"}], correct:1,
+      e:{fr:"La Rioja est une région espagnole, surtout connue pour le Tempranillo.", en:"Rioja is a Spanish region, best known for Tempranillo."} },
+    { q:{fr:"Quel cépage domine le Chianti ?", en:"Which grape dominates Chianti?"},
+      o:[{fr:"Sangiovese",en:"Sangiovese"},{fr:"Nebbiolo",en:"Nebbiolo"},{fr:"Primitivo",en:"Primitivo"},{fr:"Merlot",en:"Merlot"}], correct:0,
+      e:{fr:"Le Chianti, en Toscane, repose sur le Sangiovese.", en:"Chianti, in Tuscany, is built on Sangiovese."} },
+    { q:{fr:"Pour quel cépage la Moselle (Allemagne) est-elle réputée ?", en:"Which grape is the Mosel (Germany) famous for?"},
+      o:[{fr:"Gewürztraminer",en:"Gewürztraminer"},{fr:"Riesling",en:"Riesling"},{fr:"Grüner Veltliner",en:"Grüner Veltliner"},{fr:"Silvaner",en:"Silvaner"}], correct:1,
+      e:{fr:"La Moselle est célèbre pour ses Rieslings vifs et délicats.", en:"The Mosel is famous for its racy, delicate Rieslings."} },
+    { q:{fr:"De quel pays vient le Porto ?", en:"Which country does Port come from?"},
+      o:[{fr:"Espagne",en:"Spain"},{fr:"Portugal",en:"Portugal"},{fr:"Italie",en:"Italy"},{fr:"Grèce",en:"Greece"}], correct:1,
+      e:{fr:"Le Porto est un vin muté de la vallée du Douro, au Portugal.", en:"Port is a fortified wine from the Douro Valley, Portugal."} },
+    { q:{fr:"Que signifie le millésime indiqué sur une étiquette ?", en:"What does the vintage on a label mean?"},
+      o:[{fr:"L'année de récolte des raisins",en:"The year the grapes were harvested"},{fr:"L'année de mise en vente",en:"The year it went on sale"},{fr:"L'âge du domaine",en:"The age of the estate"},{fr:"Le degré d'alcool",en:"The alcohol level"}], correct:0,
+      e:{fr:"Le millésime est l'année où les raisins ont été vendangés.", en:"The vintage is the year the grapes were harvested."} },
+    { q:{fr:"Sur un champagne, que signifie « Brut » ?", en:"On a Champagne, what does \"Brut\" mean?"},
+      o:[{fr:"Très sucré",en:"Very sweet"},{fr:"Peu sucré, sec",en:"Low in sugar, dry"},{fr:"Sans bulles",en:"Still, no bubbles"},{fr:"Rosé",en:"Rosé"}], correct:1,
+      e:{fr:"« Brut » désigne un mousseux sec, à faible teneur en sucre.", en:"\"Brut\" means a dry sparkling wine, low in residual sugar."} },
+    { q:{fr:"En Bourgogne, que désigne un « Grand Cru » ?", en:"In Burgundy, what is a \"Grand Cru\"?"},
+      o:[{fr:"Le plus haut niveau de classement des vignobles",en:"The top tier of vineyard classification"},{fr:"Un vin d'entrée de gamme",en:"An entry-level wine"},{fr:"Un assemblage de régions",en:"A blend across regions"},{fr:"Un vin sans appellation",en:"A wine without appellation"}], correct:0,
+      e:{fr:"Grand Cru est l'échelon le plus élevé de la hiérarchie bourguignonne.", en:"Grand Cru is the highest rung of Burgundy's hierarchy."} },
+    { q:{fr:"À quoi sert un conteneur réfrigéré (« reefer ») pour importer du vin ?", en:"Why ship wine in a refrigerated (\"reefer\") container?"},
+      o:[{fr:"Accélérer le vieillissement",en:"To speed up ageing"},{fr:"Maintenir une température stable et fraîche",en:"To keep a stable, cool temperature"},{fr:"Ajouter des bulles",en:"To add bubbles"},{fr:"Réduire les taxes",en:"To lower taxes"}], correct:1,
+      e:{fr:"Une température stable évite que la chaleur n'abîme le vin en transit.", en:"A stable temperature stops heat from damaging the wine in transit."} }
+  ],
+
+  /* ---------- STAGE 3 — VIGNERON (advanced) ---------- */
+  [
+    { q:{fr:"Pendant la fermentation, les levures transforment le sucre en…", en:"During fermentation, yeast turns sugar into…"},
+      o:[{fr:"Alcool et CO₂",en:"Alcohol and CO₂"},{fr:"Tanins",en:"Tannins"},{fr:"Acide tartrique",en:"Tartaric acid"},{fr:"Glycérol seulement",en:"Glycerol only"}], correct:0,
+      e:{fr:"La fermentation alcoolique produit de l'éthanol et du gaz carbonique.", en:"Alcoholic fermentation produces ethanol and carbon dioxide."} },
+    { q:{fr:"La fermentation malolactique convertit l'acide malique en…", en:"Malolactic fermentation converts malic acid into…"},
+      o:[{fr:"Acide lactique",en:"Lactic acid"},{fr:"Alcool",en:"Alcohol"},{fr:"Sucre",en:"Sugar"},{fr:"Acide acétique",en:"Acetic acid"}], correct:0,
+      e:{fr:"Elle assouplit le vin en transformant l'acide malique en acide lactique.", en:"It softens wine by turning sharp malic acid into lactic acid."} },
+    { q:{fr:"Le « goût de bouchon » est principalement causé par…", en:"\"Cork taint\" is mainly caused by…"},
+      o:[{fr:"Le TCA (trichloroanisole)",en:"TCA (trichloroanisole)"},{fr:"Trop de soufre",en:"Too much sulphur"},{fr:"L'excès de tanins",en:"Excess tannin"},{fr:"Le froid",en:"Cold storage"}], correct:0,
+      e:{fr:"La molécule TCA donne une odeur de carton humide et éteint le fruit.", en:"The compound TCA gives a wet-cardboard smell and mutes the fruit."} },
+    { q:{fr:"Qu'est-ce que la véraison dans le vignoble ?", en:"What is véraison in the vineyard?"},
+      o:[{fr:"Le changement de couleur des baies au début de la maturité",en:"The colour change of the berries as ripening begins"},{fr:"La taille d'hiver",en:"Winter pruning"},{fr:"La récolte",en:"The harvest"},{fr:"Le pressurage",en:"Pressing the grapes"}], correct:0,
+      e:{fr:"À la véraison, les raisins changent de couleur et commencent à mûrir.", en:"At véraison the grapes change colour and begin to ripen."} },
+    { q:{fr:"Le botrytis (« pourriture noble ») est recherché pour quels vins ?", en:"Botrytis (\"noble rot\") is prized for which wines?"},
+      o:[{fr:"Les blancs liquoreux comme le Sauternes",en:"Sweet whites like Sauternes"},{fr:"Les rouges tanniques",en:"Tannic reds"},{fr:"Les mousseux",en:"Sparkling wines"},{fr:"Les rosés secs",en:"Dry rosés"}], correct:0,
+      e:{fr:"Le botrytis concentre les sucres et donne les grands liquoreux.", en:"Botrytis concentrates sugars and yields great sweet wines."} },
+    { q:{fr:"À quelle région la macération carbonique est-elle surtout associée ?", en:"Carbonic maceration is most associated with which region?"},
+      o:[{fr:"Beaujolais",en:"Beaujolais"},{fr:"Bordeaux",en:"Bordeaux"},{fr:"Champagne",en:"Champagne"},{fr:"Jerez",en:"Jerez"}], correct:0,
+      e:{fr:"Cette méthode donne le fruité et la souplesse typiques du Beaujolais.", en:"This method gives Beaujolais its hallmark fruit and suppleness."} },
+    { q:{fr:"Que désigne le « bâtonnage » en cave ?", en:"What does \"bâtonnage\" mean in the cellar?"},
+      o:[{fr:"Remettre les lies en suspension dans le vin",en:"Stirring the lees back into suspension"},{fr:"Coller le vin avec du blanc d'œuf",en:"Fining the wine with egg white"},{fr:"Filtrer avant mise",en:"Filtering before bottling"},{fr:"Chauffer le moût",en:"Heating the must"}], correct:0,
+      e:{fr:"On remue les lies pour donner du gras et de la texture au vin.", en:"Stirring the lees adds richness and texture to the wine."} },
+    { q:{fr:"Qu'est-ce que le phylloxéra ?", en:"What is phylloxera?"},
+      o:[{fr:"Un puceron qui ravage les racines de la vigne",en:"An aphid that destroys vine roots"},{fr:"Un champignon des feuilles",en:"A leaf fungus"},{fr:"Une levure",en:"A yeast"},{fr:"Une technique de taille",en:"A pruning technique"}], correct:0,
+      e:{fr:"Ce puceron dévasta les vignobles au XIXᵉ siècle ; d'où le greffage sur porte-greffes américains.", en:"This aphid devastated 19th-century vineyards; hence grafting onto American rootstocks."} },
+    { q:{fr:"À quoi sert principalement le SO₂ (soufre) en vinification ?", en:"What is SO₂ (sulphur) mainly used for in winemaking?"},
+      o:[{fr:"Antioxydant et antiseptique",en:"Antioxidant and antiseptic"},{fr:"Ajouter du sucre",en:"To add sweetness"},{fr:"Colorer le vin",en:"To add colour"},{fr:"Augmenter les tanins",en:"To raise tannin"}], correct:0,
+      e:{fr:"Le SO₂ protège le vin de l'oxydation et des micro-organismes indésirables.", en:"SO₂ protects wine from oxidation and unwanted microbes."} },
+    { q:{fr:"Que recouvre la notion de « terroir » ?", en:"What does \"terroir\" capture?"},
+      o:[{fr:"La combinaison sol, climat et exposition d'un lieu",en:"The mix of soil, climate and exposure of a place"},{fr:"Le type de bouteille",en:"The bottle shape"},{fr:"La marque commerciale",en:"The commercial brand"},{fr:"Le degré d'alcool",en:"The alcohol level"}], correct:0,
+      e:{fr:"Le terroir exprime l'empreinte d'un lieu : sol, climat, exposition (et savoir-faire).", en:"Terroir is a site's fingerprint: soil, climate, exposure (and know-how)."} }
+  ],
+
+  /* ---------- STAGE 4 — PROPRIÉTAIRE (expert) ---------- */
+  [
+    { q:{fr:"Dans quelle région se trouve le mythique vignoble de la Romanée-Conti ?", en:"In which region is the legendary Romanée-Conti vineyard?"},
+      o:[{fr:"Bourgogne",en:"Burgundy"},{fr:"Bordeaux",en:"Bordeaux"},{fr:"Rhône",en:"Rhône"},{fr:"Champagne",en:"Champagne"}], correct:0,
+      e:{fr:"La Romanée-Conti est un Grand Cru de la Côte de Nuits, en Bourgogne.", en:"Romanée-Conti is a Grand Cru in the Côte de Nuits, Burgundy."} },
+    { q:{fr:"Le système « solera » sert à élever quel type de vin ?", en:"The \"solera\" system is used to age which kind of wine?"},
+      o:[{fr:"Le Xérès (Sherry)",en:"Sherry"},{fr:"Le Champagne",en:"Champagne"},{fr:"Le Beaujolais",en:"Beaujolais"},{fr:"Le Riesling",en:"Riesling"}], correct:0,
+      e:{fr:"La solera assemble en continu de jeunes et vieux vins, typique du Xérès.", en:"A solera continuously blends young and old wines — classic for Sherry."} },
+    { q:{fr:"Au « Jugement de Paris » de 1976, quels vins ont créé la surprise ?", en:"At the 1976 \"Judgment of Paris\", which wines stunned the judges?"},
+      o:[{fr:"Ceux de Californie",en:"Those from California"},{fr:"Ceux d'Australie",en:"Those from Australia"},{fr:"Ceux d'Afrique du Sud",en:"Those from South Africa"},{fr:"Ceux du Chili",en:"Those from Chile"}], correct:0,
+      e:{fr:"Des vins californiens devancèrent de grands crus français lors de cette dégustation à l'aveugle.", en:"California wines beat top French growths in this blind tasting."} },
+    { q:{fr:"Combien de crus (villages classés) compte le Beaujolais ?", en:"How many crus (classified villages) does Beaujolais have?"},
+      o:[{fr:"5",en:"5"},{fr:"10",en:"10"},{fr:"14",en:"14"},{fr:"20",en:"20"}], correct:1,
+      e:{fr:"Le Beaujolais compte 10 crus, de Brouilly à Moulin-à-Vent.", en:"Beaujolais has 10 crus, from Brouilly to Moulin-à-Vent."} },
+    { q:{fr:"Quel cépage domine le Château d'Yquem (Sauternes) ?", en:"Which grape dominates Château d'Yquem (Sauternes)?"},
+      o:[{fr:"Sémillon",en:"Sémillon"},{fr:"Chardonnay",en:"Chardonnay"},{fr:"Riesling",en:"Riesling"},{fr:"Chenin",en:"Chenin"}], correct:0,
+      e:{fr:"Le Sémillon, sensible au botrytis, est la base des grands Sauternes.", en:"Sémillon, prone to botrytis, is the backbone of great Sauternes."} },
+    { q:{fr:"Dans la méthode traditionnelle, où a lieu la deuxième fermentation ?", en:"In the traditional method, where does the second fermentation happen?"},
+      o:[{fr:"En bouteille",en:"In the bottle"},{fr:"En cuve inox",en:"In a steel tank"},{fr:"En barrique",en:"In a barrel"},{fr:"En amphore",en:"In an amphora"}], correct:0,
+      e:{fr:"La prise de mousse se fait en bouteille — c'est ce qui crée les bulles du Champagne.", en:"The bubbles form from a second fermentation in the bottle — the heart of the Champagne method."} },
+    { q:{fr:"Dans le Tokaji hongrois, la richesse en sucre se mesure en…", en:"In Hungarian Tokaji, sweetness is measured in…"},
+      o:[{fr:"Puttonyos",en:"Puttonyos"},{fr:"Degrés Oechsle",en:"Oechsle degrees"},{fr:"Brix",en:"Brix"},{fr:"Carats",en:"Carats"}], correct:0,
+      e:{fr:"Le nombre de « puttonyos » indique la concentration en sucre du Tokaji Aszú.", en:"The number of \"puttonyos\" marks the sugar concentration of Tokaji Aszú."} },
+    { q:{fr:"Quel château fut promu Premier Grand Cru Classé de Bordeaux en 1973 ?", en:"Which château was promoted to First Growth in Bordeaux in 1973?"},
+      o:[{fr:"Mouton Rothschild",en:"Mouton Rothschild"},{fr:"Pétrus",en:"Pétrus"},{fr:"Cheval Blanc",en:"Cheval Blanc"},{fr:"Palmer",en:"Palmer"}], correct:0,
+      e:{fr:"Mouton Rothschild rejoignit les Premiers Crus en 1973, seule modification du classement de 1855.", en:"Mouton Rothschild joined the First Growths in 1973 — the only change to the 1855 classification."} },
+    { q:{fr:"À l'aveugle, une acidité élevée, un faible alcool et des arômes de pomme verte évoquent un climat…", en:"Blind, high acidity, low alcohol and green-apple aromas suggest a climate that is…"},
+      o:[{fr:"Frais",en:"Cool"},{fr:"Très chaud",en:"Very hot"},{fr:"Désertique",en:"Desert"},{fr:"Tropical",en:"Tropical"}], correct:0,
+      e:{fr:"Acidité haute et alcool bas pointent vers un climat frais.", en:"High acid and low alcohol point to a cool climate."} },
+    { q:{fr:"Qu'est-ce qui définit un « Vintage Port » ?", en:"What defines a \"Vintage Port\"?"},
+      o:[{fr:"Un porto d'un seul millésime déclaré exceptionnel",en:"A Port from a single declared, exceptional vintage"},{fr:"Un assemblage de plusieurs années",en:"A blend of several years"},{fr:"Un porto sans alcool ajouté",en:"A Port with no added spirit"},{fr:"Un porto blanc",en:"A white Port"}], correct:0,
+      e:{fr:"Le Vintage Port provient d'une seule année « déclarée » et vieillit ensuite en bouteille.", en:"Vintage Port comes from a single \"declared\" year and then ages in bottle."} }
+  ]
+];
+
+/* =================================================================
+   STATE
+   ================================================================= */
+let LANG = "fr";
+let players = [];          // {name, av:{gender,hair,hairColor,skin}, score, reached, won}
+let current = 0;           // whose turn
+let run = null;            // active run state
+let lbReturn = "home";     // where the leaderboard "Back" goes
+
+// draft avatar in the builder
+let draft = { gender:"neutral", hair:"short", hairColor:HAIR_COLORS[0], skin:SKIN_TONES[1] };
+
+/* =================================================================
+   AVATAR — drawn entirely in SVG, outfit changes by stage (0-3)
+   ================================================================= */
+function avatarSVG(av, stage){
+  stage = Math.max(0, Math.min(3, stage|0));
+  const skin = av.skin, hc = av.hairColor, g = av.gender;
+  const darker = shade(skin, -22);
+
+  // ----- hair (back layer, before body) -----
+  let hairBack = "";
+  if (av.hair === "long"){
+    hairBack = `<path d="M30 44 C26 70 26 104 30 124 L42 124 L42 50 Z" fill="${hc}"/>
+                <path d="M90 44 C94 70 94 104 90 124 L78 124 L78 50 Z" fill="${hc}"/>`;
+  } else if (av.hair === "ponytail"){
+    hairBack = `<path d="M86 40 C104 46 104 78 92 92 C98 74 92 56 80 50 Z" fill="${hc}"/>`;
+  }
+
+  // ----- outfit (torso) -----
+  const outfit = outfitSVG(stage, skin);
+
+  // ----- neck -----
+  const neck = `<rect x="52" y="64" width="16" height="26" rx="7" fill="${skin}"/>
+                <path d="M52 78 q8 8 16 0 v8 q-8 6 -16 0 z" fill="${darker}" opacity=".5"/>`;
+
+  // ----- head + face -----
+  const head = `<circle cx="60" cy="46" r="27" fill="${skin}"/>
+                <ellipse cx="60" cy="46" rx="27" ry="27" fill="url(#cheek)" opacity=".5"/>`;
+  const lashes = g === "fem" ? `<path d="M47 43 q3 -2 6 0" stroke="#3a2418" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+                                <path d="M67 43 q3 -2 6 0" stroke="#3a2418" stroke-width="1.6" fill="none" stroke-linecap="round"/>` : "";
+  const face = `<circle cx="50" cy="46" r="2.6" fill="#3a2418"/>
+                <circle cx="70" cy="46" r="2.6" fill="#3a2418"/>
+                ${lashes}
+                <path d="M53 57 q7 ${g==="masc"?5:6} 14 0" stroke="#7a3b32" stroke-width="2" fill="none" stroke-linecap="round"/>
+                <path d="M58 49 q2 3 0 5" stroke="${darker}" stroke-width="1.4" fill="none" opacity=".5"/>`;
+
+  // ----- hair (front/top) -----
+  let hairFront = hairTopSVG(av.hair, hc, g);
+
+  // ----- hat (vigneron only, drawn above hair) -----
+  const hat = stage === 2 ? `
+      <ellipse cx="60" cy="28" rx="36" ry="8" fill="#7a5a36"/>
+      <path d="M38 28 q0 -20 22 -20 q22 0 22 20 z" fill="#8a6a40"/>
+      <path d="M38 27 q22 -7 44 0" stroke="#5e4327" stroke-width="3" fill="none"/>` : "";
+
+  return `<svg viewBox="0 0 120 150" xmlns="http://www.w3.org/2000/svg" role="img">
+    <defs>
+      <radialGradient id="cheek" cx="50%" cy="62%" r="55%">
+        <stop offset="0%" stop-color="#ffffff" stop-opacity="0"/>
+        <stop offset="78%" stop-color="#ffffff" stop-opacity="0"/>
+        <stop offset="100%" stop-color="#b5604a" stop-opacity=".25"/>
+      </radialGradient>
+    </defs>
+    ${hairBack}
+    ${outfit}
+    ${neck}
+    ${head}
+    ${face}
+    ${hairFront}
+    ${hat}
+  </svg>`;
+}
+
+function hairTopSVG(style, hc, g){
+  const base = `<path d="M32 48 C30 16 90 16 88 48 C84 32 74 25 60 25 C46 25 36 32 32 48 Z" fill="${hc}"/>`;
+  switch(style){
+    case "buzz":
+      return `<path d="M35 46 C35 24 85 24 85 46 C80 35 72 30 60 30 C48 30 40 35 35 46 Z" fill="${hc}" opacity=".82"/>`;
+    case "curly":
+      return `<g fill="${hc}">
+        <circle cx="38" cy="36" r="9"/><circle cx="50" cy="28" r="10"/><circle cx="62" cy="26" r="10"/>
+        <circle cx="74" cy="29" r="10"/><circle cx="84" cy="38" r="9"/>
+        <path d="M34 46 C34 30 86 30 86 46 C80 38 70 34 60 34 C50 34 40 38 34 46 Z"/></g>`;
+    case "bun":
+      return `<circle cx="60" cy="18" r="9" fill="${hc}"/>${base}`;
+    case "long":
+    case "ponytail":
+    case "short":
+    default:
+      return base;
+  }
+}
+
+function outfitSVG(stage, skin){
+  const body = `M14 150 C14 106 34 94 60 94 C86 94 106 106 106 150 Z`;
+  if (stage === 0){
+    // SOMMELIER — white shirt, black vest/apron, tastevin on a chain
+    return `
+      <path d="${body}" fill="#16161a"/>
+      <path d="M44 96 L60 120 L76 96 L70 150 L50 150 Z" fill="#f4efe6"/>
+      <path d="M52 96 L60 110 L68 96 Z" fill="#2a2a30"/>
+      <path d="M46 99 C54 116 66 116 74 99" stroke="#C9A24B" stroke-width="1.5" fill="none" opacity=".8"/>
+      <circle cx="60" cy="120" r="6.5" fill="#cfd2d6" stroke="#9aa0a6" stroke-width="1.5"/>
+      <circle cx="60" cy="120" r="2.5" fill="#9aa0a6"/>`;
+  }
+  if (stage === 1){
+    // IMPORTATEUR — charcoal suit, white shirt, bordeaux tie
+    return `
+      <path d="${body}" fill="#2b2f3a"/>
+      <path d="M48 96 L60 116 L72 96 L66 150 L54 150 Z" fill="#f4efe6"/>
+      <path d="M44 96 L60 118 L52 150 L40 150 Z" fill="#23262f"/>
+      <path d="M76 96 L60 118 L68 150 L80 150 Z" fill="#23262f"/>
+      <path d="M57 104 L63 104 L66 132 L60 142 L54 132 Z" fill="#7B1E2B"/>
+      <path d="M57 104 L63 104 L61.5 110 L58.5 110 Z" fill="#5c1620"/>`;
+  }
+  if (stage === 2){
+    // VIGNERON — denim overalls, cream shirt, straps
+    return `
+      <path d="${body}" fill="#cdbfa3"/>
+      <path d="M14 150 C14 116 30 104 60 104 C90 104 106 116 106 150 Z" fill="#3f6ea3"/>
+      <rect x="38" y="100" width="9" height="40" rx="3" fill="#34608f"/>
+      <rect x="73" y="100" width="9" height="40" rx="3" fill="#34608f"/>
+      <rect x="46" y="120" width="28" height="22" rx="3" fill="#34608f"/>
+      <circle cx="42.5" cy="118" r="2.4" fill="#C9A24B"/>
+      <circle cx="77.5" cy="118" r="2.4" fill="#C9A24B"/>
+      <path d="M50 100 L60 112 L70 100 Z" fill="#efe7d6"/>`;
+  }
+  // stage 3 — PROPRIÉTAIRE — burgundy blazer, pocket square, wine glass in hand
+  return `
+    <path d="${body}" fill="#6e1f2a"/>
+    <path d="M48 96 L60 116 L72 96 L66 150 L54 150 Z" fill="#f4efe6"/>
+    <path d="M44 96 L60 118 L50 150 L38 150 Z" fill="#5a1622"/>
+    <path d="M76 96 L60 118 L70 150 L82 150 Z" fill="#5a1622"/>
+    <path d="M58 104 L62 104 L65 128 L60 136 L55 128 Z" fill="#3f0f17"/>
+    <path d="M44 112 l6 0 l-3 6 z" fill="#C9A24B"/>
+    <g>
+      <path d="M92 108 q0 9 7 11 l0 16" stroke="#e7e2d6" stroke-width="1.6" fill="none"/>
+      <path d="M86 104 q6 12 13 12 q7 0 7 -12 z" fill="#8a2030" opacity=".9"/>
+      <path d="M86 104 q6 12 13 12 q7 0 7 -12 z" fill="none" stroke="#e7e2d6" stroke-width="1.4"/>
+      <rect x="92" y="134" width="14" height="2.6" rx="1.3" fill="#e7e2d6"/>
+    </g>`;
+}
+
+// lighten/darken a hex colour
+function shade(hex, amt){
+  let c = hex.replace("#","");
+  if (c.length === 3) c = c.split("").map(x=>x+x).join("");
+  let r = clamp(parseInt(c.substr(0,2),16)+amt);
+  let g = clamp(parseInt(c.substr(2,2),16)+amt);
+  let b = clamp(parseInt(c.substr(4,2),16)+amt);
+  return "#" + [r,g,b].map(x=>x.toString(16).padStart(2,"0")).join("");
+}
+function clamp(n){ return Math.max(0, Math.min(255, n)); }
+
+/* =================================================================
+   I18N RENDERING
+   ================================================================= */
+function setLang(l){
+  LANG = l;
+  document.documentElement.lang = l;
+  document.getElementById("lang-fr").classList.toggle("on", l==="fr");
+  document.getElementById("lang-en").classList.toggle("on", l==="en");
+  applyStatic();
+  refresh();        // re-render whatever screen is active
+}
+function applyStatic(){
+  document.querySelectorAll("[data-i18n]").forEach(el=>{
+    el.textContent = t(el.getAttribute("data-i18n"));
+  });
+  document.querySelectorAll("[data-i18n-ph]").forEach(el=>{
+    el.setAttribute("placeholder", t(el.getAttribute("data-i18n-ph")));
+  });
+}
+
+let refresh = ()=>{};   // active-screen re-render hook
+
+function show(id){
+  document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+  window.scrollTo({top:0, behavior:"auto"});
+}
+
+/* =================================================================
+   HOME
+   ================================================================= */
+function renderHome(){
+  const lad = document.getElementById("home-ladder");
+  lad.innerHTML = STAGES[LANG].map((s,i)=>`
+    <div class="rung">
+      <div class="n">${i+1}</div>
+      <div><div class="t">${s}</div><div class="d">${STAGE_DESC[LANG][i]}</div></div>
+    </div>`).join("");
+}
+function goHome(){ show("screen-home"); refresh = renderHome; renderHome(); }
+
+/* =================================================================
+   SETUP  &  AVATAR BUILDER
+   ================================================================= */
+function goSetup(){
+  show("screen-setup");
+  refresh = renderSetup;
+  renderSetup();
+}
+function renderSetup(){
+  // players list
+  const list = document.getElementById("players-list");
+  if (players.length === 0){
+    list.innerHTML = `<div class="empty-hint">${t("emptyPlayers")}</div>`;
+  } else {
+    list.innerHTML = players.map((p,i)=>`
+      <div class="player-chip">
+        <div class="av">${avatarSVG(p.av, 0)}</div>
+        <div class="nm">${escapeHTML(p.name)}</div>
+        <button class="x" onclick="removePlayer(${i})" aria-label="remove">×</button>
+      </div>`).join("");
+  }
+  renderBuilder();
+  document.getElementById("btn-start").style.opacity = players.length >= 2 ? "1" : ".55";
+}
+
+function renderBuilder(){
+  // gender options
+  document.getElementById("opt-gender").innerHTML = GENDERS.map(gv=>{
+    const lbl = gv==="masc"?t("genderMasc"):gv==="fem"?t("genderFem"):t("genderNeutral");
+    return `<button class="opt ${draft.gender===gv?"on":""}" onclick="setDraft('gender','${gv}')">${lbl}</button>`;
+  }).join("");
+  // hair options
+  const hairLabels = {short:"hairShort",buzz:"hairBuzz",long:"hairLong",curly:"hairCurly",bun:"hairBun",ponytail:"hairPonytail"};
+  document.getElementById("opt-hair").innerHTML = HAIRSTYLES.map(hv=>
+    `<button class="opt ${draft.hair===hv?"on":""}" onclick="setDraft('hair','${hv}')">${t(hairLabels[hv])}</button>`).join("");
+  // hair colours
+  document.getElementById("opt-haircolor").innerHTML = HAIR_COLORS.map(c=>
+    `<button class="swatch ${draft.hairColor===c?"on":""}" style="background:${c}" onclick="setDraft('hairColor','${c}')" aria-label="hair colour"></button>`).join("");
+  // skin tones
+  document.getElementById("opt-skin").innerHTML = SKIN_TONES.map(c=>
+    `<button class="swatch ${draft.skin===c?"on":""}" style="background:${c}" onclick="setDraft('skin','${c}')" aria-label="skin tone"></button>`).join("");
+  // preview
+  document.getElementById("preview").innerHTML = avatarSVG(draft, 0);
+}
+function setDraft(key, val){ draft[key] = val; renderBuilder(); }
+
+function addPlayer(){
+  if (players.length >= 8){ alert(t("maxPlayers")); return; }
+  const nameEl = document.getElementById("in-name");
+  const name = nameEl.value.trim();
+  if (!name){ alert(t("needName")); nameEl.focus(); return; }
+  players.push({ name, av:{...draft}, score:0, reached:0, won:false });
+  nameEl.value = "";
+  // fresh random-ish draft for the next player so they differ
+  draft = {
+    gender: GENDERS[Math.floor(Math.random()*GENDERS.length)],
+    hair: HAIRSTYLES[Math.floor(Math.random()*HAIRSTYLES.length)],
+    hairColor: HAIR_COLORS[Math.floor(Math.random()*HAIR_COLORS.length)],
+    skin: SKIN_TONES[Math.floor(Math.random()*SKIN_TONES.length)]
+  };
+  renderSetup();
+}
+function removePlayer(i){ players.splice(i,1); renderSetup(); }
+
+/* =================================================================
+   GAME FLOW
+   ================================================================= */
+function startGame(){
+  if (players.length < 2){ alert(t("needTwo")); return; }
+  current = 0;
+  players.forEach(p=>{ p.score=0; p.reached=0; p.won=false; });
+  showHandoff();
+}
+
+function showHandoff(){
+  const p = players[current];
+  show("screen-handoff");
+  refresh = showHandoff;
+  document.getElementById("handoff-name").textContent = p.name;
+  document.getElementById("handoff-av").innerHTML = avatarSVG(p.av, 0);
+  document.getElementById("handoff-role").textContent = STAGES[LANG][0];
+  document.getElementById("handoff-note").textContent = t("handoffNote");
+}
+
+function drawQuestions(stage){
+  const pool = BANK[stage].slice();
+  for (let i = pool.length-1; i>0; i--){ const j = Math.floor(Math.random()*(i+1)); [pool[i],pool[j]]=[pool[j],pool[i]]; }
+  return pool.slice(0, CONFIG.questionsPerStage);
+}
+
+function beginRun(){
+  run = {
+    stage: 0,
+    lives: CONFIG.lives,
+    qIndex: 0,
+    correctThisStage: 0,
+    questions: drawQuestions(0),
+    score: 0,
+    answered: false
+  };
+  show("screen-game");
+  refresh = renderQuestion;
+  renderQuestion();
+}
+
+function renderQuestion(){
+  const p = players[current];
+  const st = run.stage;
+  run.answered = false;
+
+  // HUD
+  document.getElementById("game-av").innerHTML = avatarSVG(p.av, st);
+  document.getElementById("game-name").textContent = p.name;
+  document.getElementById("game-role").textContent = STAGES[LANG][st];
+
+  // lives
+  let lh = "";
+  for (let i=0;i<CONFIG.lives;i++) lh += `<span class="b ${i<run.lives?"":"lost"}">🍾</span>`;
+  document.getElementById("game-lives").innerHTML = lh;
+
+  // progress
+  const prog = document.getElementById("game-progress");
+  prog.innerHTML = STAGES[LANG].map((_,i)=>{
+    let cls = i<st ? "done" : (i===st ? "cur" : "");
+    return `<div class="step ${cls}"></div>`;
+  }).join("");
+  document.getElementById("game-progress-labels").innerHTML =
+    STAGES[LANG].map((s,i)=>`<span class="${i===st?"cur":""}">${s.split(" ")[0]}</span>`).join("");
+
+  // meta
+  document.getElementById("q-counter").textContent = `${run.qIndex+1}/${CONFIG.questionsPerStage}`;
+  document.getElementById("q-need").textContent = `${CONFIG.thresholds[st]}/${CONFIG.questionsPerStage}`;
+
+  // question + answers
+  const item = run.questions[run.qIndex];
+  document.getElementById("q-text").textContent = item.q[LANG];
+  const keys = ["A","B","C","D","E","F"];
+  document.getElementById("q-answers").innerHTML = item.o.map((opt,i)=>
+    `<button class="answer" onclick="answer(${i})"><span class="key">${keys[i]}</span><span>${opt[LANG]}</span></button>`).join("");
+
+  document.getElementById("q-feedback").innerHTML = "";
+  document.getElementById("q-next-row").style.display = "none";
+}
+
+function answer(i){
+  if (run.answered) return;
+  run.answered = true;
+  const st = run.stage;
+  const item = run.questions[run.qIndex];
+  const correct = item.correct;
+  const btns = document.querySelectorAll("#q-answers .answer");
+  btns.forEach((b,idx)=>{
+    b.disabled = true;
+    if (idx === correct) b.classList.add("correct");
+    if (idx === i && i !== correct) b.classList.add("wrong");
+  });
+
+  const ok = (i === correct);
+  if (ok){
+    run.correctThisStage++;
+    run.score += CONFIG.pointsPerCorrect(st);
+  } else {
+    run.lives--;
+  }
+
+  // feedback
+  const fb = document.getElementById("q-feedback");
+  fb.className = "feedback " + (ok ? "good":"bad");
+  fb.innerHTML = `<div class="verdict">${ok?"✓ "+t("good"):"✕ "+t("bad")}</div>
+                  <div class="why">${item.e[LANG]}</div>`;
+
+  // next button label
+  const isLastQ = (run.qIndex+1 >= CONFIG.questionsPerStage);
+  const willEnd = run.lives <= 0;
+  const nextBtn = document.getElementById("q-next");
+  nextBtn.textContent = willEnd ? t("seeResult") : (isLastQ ? t("continue") : t("continue"));
+  document.getElementById("q-next-row").style.display = "flex";
+
+  // refresh lives display immediately
+  let lh = "";
+  for (let k=0;k<CONFIG.lives;k++) lh += `<span class="b ${k<run.lives?"":"lost"}">🍾</span>`;
+  document.getElementById("game-lives").innerHTML = lh;
+}
+
+function nextStep(){
+  const st = run.stage;
+
+  if (run.lives <= 0){ endRun(false, "bottles"); return; }
+
+  run.qIndex++;
+  if (run.qIndex < CONFIG.questionsPerStage){
+    renderQuestion();
+    return;
+  }
+
+  // stage finished — did they clear the threshold?
+  if (run.correctThisStage >= CONFIG.thresholds[st]){
+    run.score += CONFIG.stageBonus(st);
+    if (st >= 3){ endRun(true, "win"); return; }   // cleared the final stage → victory
+    // advance
+    run.stage++;
+    run.qIndex = 0;
+    run.correctThisStage = 0;
+    run.questions = drawQuestions(run.stage);
+    showStageClear();
+  } else {
+    endRun(false, "threshold");
+  }
+}
+
+function showStageClear(){
+  const p = players[current];
+  const st = run.stage;        // already advanced
+  show("screen-result");
+  refresh = showStageClear;
+  document.getElementById("result-kicker").textContent = t("stageClearKick");
+  document.getElementById("result-name").textContent = STAGES[LANG][st];
+  document.getElementById("result-av").innerHTML = avatarSVG(p.av, st);
+  document.getElementById("result-role").textContent = p.name;
+  document.getElementById("result-msg").textContent = t("stageClearMsg");
+  document.getElementById("result-score").textContent = run.score;
+  const btn = document.getElementById("result-next");
+  btn.textContent = t("nextStageBtn");
+  btn.onclick = ()=>{ show("screen-game"); refresh = renderQuestion; renderQuestion(); };
+}
+
+function endRun(won, reason){
+  const p = players[current];
+  p.score = run.score;
+  p.reached = run.stage;       // 0-3 = furthest stage entered
+  p.won = won;
+  saveScore(p);
+
+  if (won){
+    p.reached = 3;
+    showVictory();
+  } else {
+    showResult(reason);
+  }
+}
+
+function showResult(reason){
+  const p = players[current];
+  show("screen-result");
+  refresh = ()=>showResult(reason);
+  document.getElementById("result-kicker").textContent = t("resultKickStop");
+  document.getElementById("result-name").textContent = p.name;
+  document.getElementById("result-av").innerHTML = avatarSVG(p.av, p.reached);
+  document.getElementById("result-role").textContent = t("resultReached")+" "+STAGES[LANG][p.reached];
+  document.getElementById("result-msg").textContent = reason==="bottles" ? t("resultMsgOutBottles") : t("resultMsgOutThresh");
+  document.getElementById("result-score").textContent = p.score;
+  const btn = document.getElementById("result-next");
+  btn.textContent = lastPlayer() ? t("toResultsBtn") : t("nextPlayerBtn");
+  btn.onclick = afterResult;
+}
+
+function showVictory(){
+  const p = players[current];
+  show("screen-victory");
+  refresh = showVictory;
+  document.getElementById("win-name").textContent = p.name;
+  document.getElementById("win-av").innerHTML = avatarSVG(p.av, 3);
+  document.getElementById("win-score").textContent = p.score;
+  const btn = document.getElementById("win-next");
+  btn.textContent = lastPlayer() ? t("toResultsBtn") : t("nextPlayerBtn");
+  btn.onclick = afterResult;
+  fireConfetti();
+}
+
+function lastPlayer(){ return current >= players.length - 1; }
+
+function afterResult(){
+  if (lastPlayer()){
+    showLeaderboard("game");
+  } else {
+    current++;
+    showHandoff();
+  }
+}
+
+/* =================================================================
+   LEADERBOARD (localStorage)
+   ================================================================= */
+function loadLB(){
+  try { return JSON.parse(localStorage.getItem(LB_KEY)) || []; }
+  catch(e){ return []; }
+}
+function saveScore(p){
+  const lb = loadLB();
+  lb.push({ name:p.name, av:p.av, score:p.score, reached:p.reached, won:p.won, date:Date.now() });
+  lb.sort((a,b)=>b.score - a.score);
+  try { localStorage.setItem(LB_KEY, JSON.stringify(lb.slice(0,100))); } catch(e){}
+}
+function showLeaderboard(from){
+  lbReturn = from || "home";
+  show("screen-leaderboard");
+  refresh = ()=>showLeaderboard(lbReturn);
+  const lb = loadLB();
+  const list = document.getElementById("lb-list");
+  if (lb.length === 0){
+    list.innerHTML = `<div class="empty-hint">${t("lbEmpty")}</div>`;
+    return;
+  }
+  const medal = ["①","②","③"];
+  list.innerHTML = lb.map((r,i)=>{
+    const reached = STAGES[LANG][Math.max(0,Math.min(3,r.reached))];
+    const sub = r.won ? `🏆 ${t("lbWon")}` : `${t("lbReached")} ${reached}`;
+    return `<div class="row ${i===0?"top":""}">
+      <div class="rank">${i<3?medal[i]:(i+1)}</div>
+      <div class="av">${avatarSVG(r.av, Math.max(0,Math.min(3,r.reached)))}</div>
+      <div class="info"><div class="nm">${escapeHTML(r.name)}</div><div class="sub">${sub}</div></div>
+      <div class="sc">${r.score}${r.won?' <span class="crown">🏆</span>':''}</div>
+    </div>`;
+  }).join("");
+}
+function lbBack(){
+  if (lbReturn === "game"){ goHome(); }
+  else { goHome(); }
+}
+function resetLeaderboard(){
+  if (confirm(t("lbConfirm"))){
+    try { localStorage.removeItem(LB_KEY); } catch(e){}
+    showLeaderboard(lbReturn);
+  }
+}
+
+/* =================================================================
+   CONFETTI (victory) — respects reduced motion
+   ================================================================= */
+function fireConfetti(){
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (reduce) return;
+  const cv = document.getElementById("confetti");
+  const ctx = cv.getContext("2d");
+  cv.style.display = "block";
+  cv.width = innerWidth; cv.height = innerHeight;
+  const cols = ["#C9A24B","#e0c479","#7B1E2B","#f4efe6","#5f7d4f"];
+  const bits = Array.from({length:120}, ()=>({
+    x:Math.random()*cv.width, y:-20-Math.random()*cv.height*0.4,
+    r:4+Math.random()*5, c:cols[Math.floor(Math.random()*cols.length)],
+    vy:2+Math.random()*3.5, vx:-1.5+Math.random()*3, a:Math.random()*Math.PI, va:-0.2+Math.random()*0.4
+  }));
+  let frames = 0;
+  (function tick(){
+    frames++;
+    ctx.clearRect(0,0,cv.width,cv.height);
+    bits.forEach(b=>{
+      b.y+=b.vy; b.x+=b.vx; b.a+=b.va;
+      ctx.save(); ctx.translate(b.x,b.y); ctx.rotate(b.a);
+      ctx.fillStyle=b.c; ctx.fillRect(-b.r,-b.r/2,b.r*2,b.r);
+      ctx.restore();
+    });
+    if (frames < 220) requestAnimationFrame(tick);
+    else { ctx.clearRect(0,0,cv.width,cv.height); cv.style.display="none"; }
+  })();
+}
+
+/* =================================================================
+   UTIL
+   ================================================================= */
+function escapeHTML(s){
+  return String(s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+
+/* =================================================================
+   BOOT
+   ================================================================= */
+applyStatic();
+renderHome();
+refresh = renderHome;
+</script>
+</body>
+</html>
