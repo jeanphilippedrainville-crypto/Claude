@@ -112,6 +112,36 @@
     animation:pulseB 1s ease-in-out infinite}
   @keyframes pulseB{0%,100%{transform:translateX(-50%) scale(1)}50%{transform:translateX(-50%) scale(1.05)}}
 
+  /* Walk-in guest quiz card */
+  .guest-card{position:fixed;z-index:36;right:16px;bottom:16px;width:min(370px,92vw);
+    background:var(--paper);border:2px solid #d8c6a3;border-radius:var(--radius);
+    box-shadow:0 18px 44px -14px #0009, inset 0 1px 0 #fff8;padding:15px;
+    animation:guestIn .38s cubic-bezier(.2,.9,.3,1.25)}
+  @media(max-width:540px){.guest-card{left:12px;right:12px;width:auto}}
+  @keyframes guestIn{0%{transform:translateY(46px) scale(.96);opacity:0}100%{transform:translateY(0) scale(1);opacity:1}}
+  .guest-top{display:flex;gap:11px;align-items:flex-start}
+  .guest-avatar{width:58px;height:58px;flex:0 0 auto;border-radius:50%;display:grid;place-items:center;
+    font-size:33px;background:radial-gradient(circle at 35% 30%,#fff7,transparent 60%),var(--paper-2);
+    border:2px solid #d8c6a3;box-shadow:0 3px 0 var(--shadow);animation:bob 2.4s ease-in-out infinite}
+  .guest-speech{flex:1;min-width:0;position:relative;background:#fff;border:2px solid #e6d6b4;border-radius:14px;padding:9px 11px;box-shadow:0 3px 0 var(--shadow)}
+  .guest-speech::before{content:"";position:absolute;left:-9px;top:18px;border:8px solid transparent;border-right-color:#e6d6b4}
+  .guest-speech::after{content:"";position:absolute;left:-6px;top:19px;border:7px solid transparent;border-right-color:#fff}
+  .guest-name{font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--orange-deep);font-weight:700}
+  .guest-q{font-size:14.5px;line-height:1.4;margin-top:3px}
+  .guest-patience{height:7px;background:#e2d2b1;border-radius:999px;overflow:hidden;margin:11px 0;border:1px solid #d3c09c}
+  .guest-patience>div{height:100%;width:100%;background:linear-gradient(90deg,var(--green),var(--gold));transition:width .1s linear}
+  .guest-options{display:grid;gap:7px}
+  .qopt{cursor:pointer;text-align:left;border:1.5px solid #e0cfa9;background:#fffdf6;border-radius:11px;
+    padding:9px 12px;font-family:var(--font);font-size:13.5px;color:var(--ink);line-height:1.3;
+    transition:border-color .1s,background .1s}
+  .qopt:hover:not(:disabled){border-color:var(--orange);background:#fff}
+  .qopt:disabled{cursor:default}
+  .qopt.right{background:#eef6e6;border-color:var(--green);font-weight:700}
+  .qopt.wrong{background:#fbe9ec;border-color:var(--glou)}
+  .guest-result{margin-top:10px;font-size:13px;line-height:1.45;background:#fff;border:1.5px dashed #e2cfa3;
+    border-radius:11px;padding:10px}
+  .guest-result b{color:var(--orange-deep)}
+
   /* Right: tabs + shop */
   .tabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
   .tab{cursor:pointer;border:1.5px solid #d8c6a3;background:var(--paper-2);border-radius:999px;
@@ -238,6 +268,20 @@
 <div class="toast" id="toast"></div>
 <div class="frenzy-banner hidden" id="frenzyBanner"></div>
 
+<!-- Walk-in guest quiz -->
+<div class="guest-card hidden" id="guestCard">
+  <div class="guest-top">
+    <div class="guest-avatar" id="guestAvatar">🤨</div>
+    <div class="guest-speech">
+      <div class="guest-name" id="guestName"></div>
+      <div class="guest-q" id="guestQ"></div>
+    </div>
+  </div>
+  <div class="guest-patience"><div id="guestPatience"></div></div>
+  <div class="guest-options" id="guestOptions"></div>
+  <div class="guest-result hidden" id="guestResult"></div>
+</div>
+
 <!-- Welcome / offline overlay -->
 <div class="overlay hidden" id="overlay">
   <div class="modal" id="modal"></div>
@@ -325,7 +369,77 @@ const ACH=[
   {id:"a_terroir",emoji:"⭐", name:"Terroir Whisperer",cond:s=>s.terroir>=10},
   {id:"a_estate",emoji:"🏰", name:"Domaine Dreams",   cond:s=>s.gen.estate>=10},
   {id:"a_empire",emoji:"👑", name:"Living Legend",    cond:s=>s.run>=1e9},
+  {id:"a_quiz", emoji:"🧠", name:"Cellar Brain",      cond:s=>(s.quizCorrect||0)>=10},
+  {id:"a_quiz2",emoji:"🎓", name:"Master of Wine?",   cond:s=>(s.quizCorrect||0)>=30},
 ];
+
+/* ---------- Content: walk-in guests & their quiz questions ---------- */
+const CLIENTS=[
+  {av:"🤨", name:"Sceptical Sophie",     line:"Before I order, let me test you —"},
+  {av:"🧐", name:"Curious Newcomer",     line:"I'm new to all this, quick one —"},
+  {av:"🤳", name:"Wine Influencer",      line:"Doing a story, answer for my followers —"},
+  {av:"🎩", name:"Old-school Collector", line:"Humour an old oenophile —"},
+  {av:"🎒", name:"The Backpacker",       line:"Heard this place is legit, prove it —"},
+  {av:"✍️", name:"The Critic",           line:"Let's see if you really know your stuff —"},
+  {av:"👩‍🍳", name:"Visiting Chef",        line:"Quick pairing brain-teaser —"},
+  {av:"🧓", name:"The Local Regular",    line:"Trivia time, like always —"},
+  {av:"📸", name:"Wine Tourist",         line:"One question before I buy a case —"},
+  {av:"🍷", name:"Natty Devotee",        line:"Settle a debate for us —"},
+  {av:"🥸", name:"Mystery Guest",        line:"Psst… know your low-intervention lore?"},
+  {av:"👰", name:"Bride-to-be",          line:"Choosing wedding wine, help me out —"},
+];
+const QUIZ=[
+  {q:"What does ‘pét-nat’ (pétillant naturel) mean?",
+   a:["A wine made sparkling by bottling it before fermentation finishes",
+      "A still wine with CO₂ pumped in afterwards","A sweet fortified dessert wine","A wine aged only in new oak"],
+   c:0, e:"Méthode ancestrale — it's bottled mid-ferment, so the fizz is 100% natural."},
+  {q:"Orange wine is made from…",
+   a:["White grapes left in contact with their skins","Actual oranges","Red grapes pressed very quickly","Wine blended with orange liqueur"],
+   c:0, e:"Skin contact gives white grapes their amber colour, tannin and funk."},
+  {q:"What is a ‘qvevri’?",
+   a:["A large clay vessel buried underground to ferment wine","A French oak barrel","A grape variety","A wine region in Italy"],
+   c:0, e:"Georgia's traditional buried-clay method — UNESCO-listed and ~8,000 years old."},
+  {q:"A wine described as ‘glou-glou’ is…",
+   a:["Light, juicy and easy to gulp","Heavily oaked and tannic","Very sweet","Extremely high in alcohol"],
+   c:0, e:"It's onomatopoeia for the glugging sound of an irresistibly drinkable wine."},
+  {q:"Biodynamic farming is based on the ideas of…",
+   a:["Rudolf Steiner","Louis Pasteur","Robert Parker","Gregor Mendel"],
+   c:0, e:"Steiner's 1920s lectures — it treats the vineyard as one living organism."},
+  {q:"On a label, ‘sans soufre’ means the wine has…",
+   a:["No added sulphites","No sugar","No alcohol","No grapes from that year"],
+   c:0, e:"No added SO₂ — though tiny amounts occur naturally in fermentation."},
+  {q:"Carbonic maceration ferments…",
+   a:["Whole, uncrushed grapes in a CO₂-rich tank","Only the grape skins","Crushed grapes with lab yeast","Clear juice with no skins"],
+   c:0, e:"Fermentation starts inside each berry — that bright, bubblegum Beaujolais lift."},
+  {q:"Piquette is traditionally made by…",
+   a:["Re-soaking already-pressed grape pomace in water","Distilling leftover wine","Adding sugar to grape juice","Blending many old vintages"],
+   c:0, e:"A thrifty, low-alcohol drink historically made for vineyard workers."},
+  {q:"Which yeast do most natural winemakers rely on?",
+   a:["Wild, ambient (indigenous) yeast","Commercial cultured yeast","Baker's yeast","No yeast at all"],
+   c:0, e:"Spontaneous fermentation with whatever yeast lives on the grapes and in the cellar."},
+  {q:"A natural wine that looks cloudy or hazy is usually…",
+   a:["Simply unfiltered and unfined","Spoiled and undrinkable","Watered down","Far too old"],
+   c:0, e:"Many natty producers skip filtering and fining, leaving the wine cloudy and alive."},
+  {q:"Which country is seen as the cradle of skin-contact / amphora wine?",
+   a:["Georgia","France","Chile","Australia"],
+   c:0, e:"The qvevri tradition of the Caucasus is the ancient root of orange wine."},
+  {q:"What is ‘fining’ in winemaking?",
+   a:["Clarifying wine with agents that bind and remove particles","Adding fine sugar","A government wine tax","Ageing in especially fine oak"],
+   c:0, e:"Natural wines often skip it — which is why many are cloudy and vegan-friendly."},
+  {q:"A ‘brett’ (Brettanomyces) character smells like…",
+   a:["Barnyard / funky / horse-blanket","Fresh lemon zest","Sweet vanilla","Cool mint"],
+   c:0, e:"A wild yeast — in small doses it adds the funk some natty fans adore."},
+  {q:"‘Low-intervention’ winemaking mostly means…",
+   a:["Minimal additives and manipulation in the cellar","Picking grapes as early as possible","Using lots of new oak","Adding extra sulphur for safety"],
+   c:0, e:"The philosophy is to let the wine more or less make itself."},
+  {q:"Why can natural wine taste different bottle to bottle?",
+   a:["Little additives or filtration make it more alive and variable","Because it's fake","Because flavouring is added","They use different grapes per bottle"],
+   c:0, e:"It's a living product — variation is part of the charm, not a flaw."},
+  {q:"‘Méthode ancestrale’ produces which style?",
+   a:["A lightly sparkling wine like pét-nat","A still red","A cream sherry","An ice wine"],
+   c:0, e:"The oldest way to make bubbles — a single fermentation finished in bottle."},
+];
+const pick=a=>a[Math.floor(Math.random()*a.length)];
 
 /* ---------- State ---------- */
 let state, buyMode="1", muted=false, activeTab="cellar";
@@ -337,7 +451,7 @@ function freshState(){
   const gen={}; GENS.forEach(g=>gen[g.id]=0);
   return {
     glou:0, run:0, life:0, clicks:0,
-    gen, upg:{}, ach:{}, terroir:0,
+    gen, upg:{}, ach:{}, terroir:0, quizCorrect:0,
     lastSave:Date.now(),
   };
 }
@@ -544,6 +658,7 @@ function renderStats(){
     <div class="statline"><span>Lifetime ₲ (all vintages)</span><span class="v">${fmt(state.life)} ₲</span></div>
     <div class="statline"><span>Glasses poured by hand</span><span class="v">${fmt(state.clicks)}</span></div>
     <div class="statline"><span>Bottles in the cellar</span><span class="v">${fmt(totalGens(state))}</span></div>
+    <div class="statline"><span>Quiz answers correct</span><span class="v">${fmt(state.quizCorrect||0)}</span></div>
     <div class="statline"><span>Terroir points</span><span class="v">${state.terroir} ★ (+${state.terroir*2}%)</span></div>
     <div class="statline"><span>Achievement bonus</span><span class="v">+${(Math.pow(1.01,achCount())*100-100).toFixed(0)}% (${achCount()}/${ACH.length})</span></div>
     <h3 style="font-family:var(--font-disp);font-style:italic;color:var(--glou-deep);margin:16px 0 8px">Achievements</h3>
@@ -708,6 +823,73 @@ function updateFrenzy(){
   } else b.classList.add("hidden");
 }
 
+/* ---------- Walk-in guest quiz ---------- */
+let quizActive=false, quizT=null, quizPatienceT=null;
+function scheduleClient(){ clearTimeout(quizT); quizT=setTimeout(spawnClient, rand(30,60)*1000); }
+function spawnClient(){
+  if(quizActive){ scheduleClient(); return; }
+  quizActive=true;
+  const client=pick(CLIENTS), q=pick(QUIZ);
+  $("guestAvatar").textContent=client.av;
+  $("guestName").textContent=client.name;
+  $("guestQ").textContent=client.line+" "+q.q;
+  $("guestResult").classList.add("hidden");
+  const opts=$("guestOptions"); opts.innerHTML="";
+  const order=q.a.map((_,i)=>i).sort(()=>Math.random()-0.5);   // shuffle answers
+  order.forEach(i=>{
+    const b=document.createElement("button");
+    b.className="qopt"; b.textContent=q.a[i];
+    b.addEventListener("click",()=>answerClient(b,i===q.c,q,opts));
+    opts.appendChild(b);
+  });
+  $("guestCard").classList.remove("hidden");
+  sndDoor();
+  // patience countdown (~14s)
+  const pe=$("guestPatience").firstElementChild; let p=100; pe.style.width="100%";
+  clearInterval(quizPatienceT);
+  quizPatienceT=setInterval(()=>{
+    p-=100/(14000/100); pe.style.width=Math.max(0,p)+"%";
+    if(p<=0){ clearInterval(quizPatienceT); timeoutClient(); }
+  },100);
+}
+function answerClient(btn,correct,q,opts){
+  clearInterval(quizPatienceT);
+  [...opts.children].forEach(b=>{
+    b.disabled=true;
+    if(b.textContent===q.a[q.c]) b.classList.add("right");
+  });
+  if(!correct) btn.classList.add("wrong");
+  let gain;
+  if(correct){
+    state.quizCorrect=(state.quizCorrect||0)+1;
+    gain=Math.max(60*cps(), clickValue()*50, state.glou*0.05, 100);
+    sndPerfect();
+  } else {
+    gain=Math.max(8*cps(), clickValue()*6, 10);
+    sndWrong();
+  }
+  state.glou+=gain; state.run+=gain; state.life+=gain;
+  checkAch();
+  const res=$("guestResult"); res.classList.remove("hidden");
+  res.innerHTML=(correct?"<b>Correct! 🍷</b> ":"<b>Not quite.</b> ")+q.e+
+    `<br><span style="color:var(--green);font-weight:700">+${fmt(gain)} ₲${correct?" tip":" (they tipped anyway)"}</span>`;
+  toast(correct?"🧠 Nailed the question!":"😅 Close one","+"+fmt(gain)+" ₲");
+  updateTop();
+  setTimeout(dismissClient,3200);
+}
+function timeoutClient(){
+  const res=$("guestResult"); res.classList.remove("hidden");
+  res.innerHTML="<b>They wandered off…</b> too slow to answer. Another guest will swing by soon.";
+  [...$("guestOptions").children].forEach(b=>b.disabled=true);
+  toast("🚪 The guest left","Answer a bit quicker next time");
+  setTimeout(dismissClient,1800);
+}
+function dismissClient(){
+  $("guestCard").classList.add("hidden");
+  quizActive=false;
+  scheduleClient();
+}
+
 /* ---------- Sound (tiny WebAudio, carried from Glou Glou) ---------- */
 let actx=null;
 function beep(freq,dur=0.1,type="sine",vol=0.1){
@@ -723,6 +905,8 @@ function beep(freq,dur=0.1,type="sine",vol=0.1){
 }
 const sndPour=()=>beep(360+Math.random()*60,.05,"sine",.05);
 const sndPerfect=()=>{[784,1047,1319].forEach((f,i)=>setTimeout(()=>beep(f,.1,"triangle",.12),i*55));};
+const sndDoor=()=>{beep(330,.08,"sine",.06);setTimeout(()=>beep(247,.12,"sine",.06),90);};
+const sndWrong=()=>beep(160,.25,"sawtooth",.08);
 const sndBuy =()=>{beep(523,.07,"triangle");setTimeout(()=>beep(784,.09,"triangle"),60);};
 const sndUpg =()=>{beep(659,.08,"triangle");setTimeout(()=>beep(988,.12,"triangle"),70);};
 const sndAch =()=>{[523,659,784,1047].forEach((f,i)=>setTimeout(()=>beep(f,.12,"triangle"),i*80));};
@@ -783,6 +967,7 @@ function init(){
   markerEl=$("marker");
   requestAnimationFrame(meterLoop);
   scheduleGolden();
+  scheduleClient();
   // spacebar pours too (ignore when typing in a field)
   document.addEventListener("keydown",e=>{
     if(e.code==="Space" && !/^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName)){
@@ -805,6 +990,8 @@ function init(){
     <p>Pouring is a <b>timing game</b>: tap when the sweeping marker hits the gold zone for a
     <b>Perfect Pour</b> and build a streak. Keep an eye out for golden <b>🍾 Glou Glou bottles</b>
     drifting by — click them for big bonuses and frenzies!</p>
+    <p>Now and then a <b>guest walks in</b> 🚪 and quizzes you on natural wine — pick the right
+    answer before their patience runs out to pocket a generous tip (and learn a thing or two).</p>
     <p>Unlock upgrades, chase achievements, and when you're ready, declare a
     <b>New Vintage</b> to reset for permanent terroir bonuses. Santé!</p>
     <button class="btn" id="okBtn">Open the bar</button>`);
