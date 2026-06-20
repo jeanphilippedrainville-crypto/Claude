@@ -128,6 +128,17 @@
   .guest-speech::after{content:"";position:absolute;left:-6px;top:19px;border:7px solid transparent;border-right-color:#fff}
   .guest-name{font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--orange-deep);font-weight:700}
   .guest-q{font-size:14.5px;line-height:1.4;margin-top:3px}
+  .guest-meta{display:flex;gap:6px;margin-top:7px;flex-wrap:wrap}
+  .chip-cat,.chip-diff{font-size:10.5px;padding:2px 9px;border-radius:999px;border:1px solid #d8c6a3;
+    background:var(--paper-2);color:var(--ink-soft);letter-spacing:.5px;text-transform:uppercase;font-weight:700}
+  .chip-diff{color:var(--orange-deep);border-color:#e6c98f;background:#fff6e4}
+  /* guest waiting "at the door" of the bar scene */
+  .door{display:flex;align-items:center;justify-content:center;gap:8px;margin:2px 0 10px;
+    font-size:12.5px;color:var(--ink-soft);font-style:italic;cursor:pointer;
+    border:1.5px dashed #e0cfa9;border-radius:12px;padding:6px 8px;background:#fffdf6}
+  .door:hover{border-color:var(--orange)}
+  .door-emoji{font-size:30px;animation:knock 1s ease-in-out infinite;display:inline-block}
+  @keyframes knock{0%,100%{transform:translateY(0) rotate(-4deg)}50%{transform:translateY(-4px) rotate(4deg)}}
   .guest-patience{height:7px;background:#e2d2b1;border-radius:999px;overflow:hidden;margin:11px 0;border:1px solid #d3c09c}
   .guest-patience>div{height:100%;width:100%;background:linear-gradient(90deg,var(--green),var(--gold));transition:width .1s linear}
   .guest-options{display:grid;gap:7px}
@@ -225,6 +236,10 @@
     <!-- LEFT: the bar -->
     <section class="card">
       <div class="bar-scene" id="barScene">🏠</div>
+      <div class="door hidden" id="door" title="A guest is waiting — answer them!">
+        <span class="door-emoji" id="doorEmoji"></span>
+        <span class="door-txt">🚪 …is at the door with a question!</span>
+      </div>
       <div class="glou-big"><span id="glou">0</span> ₲</div>
       <div class="cps" id="cps">0 ₲ / sec</div>
       <button class="pour" id="pourBtn"><span style="display:block">Pour a glass</span>
@@ -275,6 +290,7 @@
     <div class="guest-speech">
       <div class="guest-name" id="guestName"></div>
       <div class="guest-q" id="guestQ"></div>
+      <div class="guest-meta" id="guestMeta"></div>
     </div>
   </div>
   <div class="guest-patience"><div id="guestPatience"></div></div>
@@ -388,58 +404,105 @@ const CLIENTS=[
   {av:"🥸", name:"Mystery Guest",        line:"Psst… know your low-intervention lore?"},
   {av:"👰", name:"Bride-to-be",          line:"Choosing wedding wine, help me out —"},
 ];
+// d = difficulty 1(easy) / 2(medium) / 3(hard) · cat = category
 const QUIZ=[
-  {q:"What does ‘pét-nat’ (pétillant naturel) mean?",
+  // ---- Easy (d1) ----
+  {cat:"Lingo", d:1, q:"What does ‘pét-nat’ (pétillant naturel) mean?",
    a:["A wine made sparkling by bottling it before fermentation finishes",
       "A still wine with CO₂ pumped in afterwards","A sweet fortified dessert wine","A wine aged only in new oak"],
    c:0, e:"Méthode ancestrale — it's bottled mid-ferment, so the fizz is 100% natural."},
-  {q:"Orange wine is made from…",
+  {cat:"Method", d:1, q:"Orange wine is made from…",
    a:["White grapes left in contact with their skins","Actual oranges","Red grapes pressed very quickly","Wine blended with orange liqueur"],
    c:0, e:"Skin contact gives white grapes their amber colour, tannin and funk."},
-  {q:"What is a ‘qvevri’?",
-   a:["A large clay vessel buried underground to ferment wine","A French oak barrel","A grape variety","A wine region in Italy"],
-   c:0, e:"Georgia's traditional buried-clay method — UNESCO-listed and ~8,000 years old."},
-  {q:"A wine described as ‘glou-glou’ is…",
+  {cat:"Lingo", d:1, q:"A wine described as ‘glou-glou’ is…",
    a:["Light, juicy and easy to gulp","Heavily oaked and tannic","Very sweet","Extremely high in alcohol"],
    c:0, e:"It's onomatopoeia for the glugging sound of an irresistibly drinkable wine."},
-  {q:"Biodynamic farming is based on the ideas of…",
-   a:["Rudolf Steiner","Louis Pasteur","Robert Parker","Gregor Mendel"],
-   c:0, e:"Steiner's 1920s lectures — it treats the vineyard as one living organism."},
-  {q:"On a label, ‘sans soufre’ means the wine has…",
+  {cat:"Lingo", d:1, q:"On a label, ‘sans soufre’ means the wine has…",
    a:["No added sulphites","No sugar","No alcohol","No grapes from that year"],
    c:0, e:"No added SO₂ — though tiny amounts occur naturally in fermentation."},
-  {q:"Carbonic maceration ferments…",
-   a:["Whole, uncrushed grapes in a CO₂-rich tank","Only the grape skins","Crushed grapes with lab yeast","Clear juice with no skins"],
-   c:0, e:"Fermentation starts inside each berry — that bright, bubblegum Beaujolais lift."},
-  {q:"Piquette is traditionally made by…",
-   a:["Re-soaking already-pressed grape pomace in water","Distilling leftover wine","Adding sugar to grape juice","Blending many old vintages"],
-   c:0, e:"A thrifty, low-alcohol drink historically made for vineyard workers."},
-  {q:"Which yeast do most natural winemakers rely on?",
+  {cat:"Method", d:1, q:"Which yeast do most natural winemakers rely on?",
    a:["Wild, ambient (indigenous) yeast","Commercial cultured yeast","Baker's yeast","No yeast at all"],
    c:0, e:"Spontaneous fermentation with whatever yeast lives on the grapes and in the cellar."},
-  {q:"A natural wine that looks cloudy or hazy is usually…",
+  {cat:"Faults", d:1, q:"A natural wine that looks cloudy or hazy is usually…",
    a:["Simply unfiltered and unfined","Spoiled and undrinkable","Watered down","Far too old"],
    c:0, e:"Many natty producers skip filtering and fining, leaving the wine cloudy and alive."},
-  {q:"Which country is seen as the cradle of skin-contact / amphora wine?",
-   a:["Georgia","France","Chile","Australia"],
-   c:0, e:"The qvevri tradition of the Caucasus is the ancient root of orange wine."},
-  {q:"What is ‘fining’ in winemaking?",
-   a:["Clarifying wine with agents that bind and remove particles","Adding fine sugar","A government wine tax","Ageing in especially fine oak"],
-   c:0, e:"Natural wines often skip it — which is why many are cloudy and vegan-friendly."},
-  {q:"A ‘brett’ (Brettanomyces) character smells like…",
-   a:["Barnyard / funky / horse-blanket","Fresh lemon zest","Sweet vanilla","Cool mint"],
-   c:0, e:"A wild yeast — in small doses it adds the funk some natty fans adore."},
-  {q:"‘Low-intervention’ winemaking mostly means…",
+  {cat:"Lingo", d:1, q:"‘Low-intervention’ winemaking mostly means…",
    a:["Minimal additives and manipulation in the cellar","Picking grapes as early as possible","Using lots of new oak","Adding extra sulphur for safety"],
    c:0, e:"The philosophy is to let the wine more or less make itself."},
-  {q:"Why can natural wine taste different bottle to bottle?",
+  {cat:"Pairing", d:1, q:"A chillable, light natural red pairs especially well with…",
+   a:["Charcuterie and tomato-y dishes on a warm day","Heavy braised short rib","Sweet chocolate cake","Cream of mushroom soup"],
+   c:0, e:"Glou-glou reds, lightly chilled, are summer-picnic and charcuterie heroes."},
+  // ---- Medium (d2) ----
+  {cat:"Method", d:2, q:"What is a ‘qvevri’?",
+   a:["A large clay vessel buried underground to ferment wine","A French oak barrel","A grape variety","A wine region in Italy"],
+   c:0, e:"Georgia's traditional buried-clay method — UNESCO-listed and ~8,000 years old."},
+  {cat:"Farming", d:2, q:"Biodynamic farming is based on the ideas of…",
+   a:["Rudolf Steiner","Louis Pasteur","Robert Parker","Gregor Mendel"],
+   c:0, e:"Steiner's 1920s lectures — it treats the vineyard as one living organism."},
+  {cat:"Method", d:2, q:"Carbonic maceration ferments…",
+   a:["Whole, uncrushed grapes in a CO₂-rich tank","Only the grape skins","Crushed grapes with lab yeast","Clear juice with no skins"],
+   c:0, e:"Fermentation starts inside each berry — that bright, bubblegum Beaujolais lift."},
+  {cat:"Method", d:2, q:"Piquette is traditionally made by…",
+   a:["Re-soaking already-pressed grape pomace in water","Distilling leftover wine","Adding sugar to grape juice","Blending many old vintages"],
+   c:0, e:"A thrifty, low-alcohol drink historically made for vineyard workers."},
+  {cat:"History", d:2, q:"Which country is seen as the cradle of skin-contact / amphora wine?",
+   a:["Georgia","France","Chile","Australia"],
+   c:0, e:"The qvevri tradition of the Caucasus is the ancient root of orange wine."},
+  {cat:"Method", d:2, q:"What is ‘fining’ in winemaking?",
+   a:["Clarifying wine with agents that bind and remove particles","Adding fine sugar","A government wine tax","Ageing in especially fine oak"],
+   c:0, e:"Natural wines often skip it — which is why many are cloudy and vegan-friendly."},
+  {cat:"Faults", d:2, q:"A ‘brett’ (Brettanomyces) character smells like…",
+   a:["Barnyard / funky / horse-blanket","Fresh lemon zest","Sweet vanilla","Cool mint"],
+   c:0, e:"A wild yeast — in small doses it adds the funk some natty fans adore."},
+  {cat:"Lingo", d:2, q:"Why can natural wine taste different bottle to bottle?",
    a:["Little additives or filtration make it more alive and variable","Because it's fake","Because flavouring is added","They use different grapes per bottle"],
    c:0, e:"It's a living product — variation is part of the charm, not a flaw."},
-  {q:"‘Méthode ancestrale’ produces which style?",
+  {cat:"Method", d:2, q:"‘Méthode ancestrale’ produces which style?",
    a:["A lightly sparkling wine like pét-nat","A still red","A cream sherry","An ice wine"],
    c:0, e:"The oldest way to make bubbles — a single fermentation finished in bottle."},
+  {cat:"Method", d:2, q:"Sulphites (SO₂) in wine mainly act as…",
+   a:["A preservative and antioxidant","A sweetener","A colour additive","A fining agent only"],
+   c:0, e:"SO₂ guards against oxidation and spoilage; natural wines use little to none."},
+  {cat:"Farming", d:2, q:"‘Demeter’ is best known as a certification for…",
+   a:["Biodynamic wine and farming","Vegan food only","Fair-trade coffee","Organic cosmetics"],
+   c:0, e:"Demeter is the main international biodynamic certification."},
+  {cat:"Pairing", d:2, q:"Which dish suits a funky, tannic orange wine best?",
+   a:["Aged cheese and cured meats","Delicate poached white fish","Vanilla ice cream","Plain steamed rice"],
+   c:0, e:"Orange wine's tannin and savour love rich, salty, umami food."},
+  // ---- Hard (d3) ----
+  {cat:"Faults", d:3, q:"A ‘mousy’ fault shows up as…",
+   a:["Stale popcorn or mouse-cage notes on the finish","Fresh green apple","Bright honey","Crisp sea salt"],
+   c:0, e:"A controversial, pH-sensitive microbial fault — savoury and rodenty on the aftertaste."},
+  {cat:"Faults", d:3, q:"High ‘VA’ (volatile acidity) smells like…",
+   a:["Vinegar or nail-polish remover","Buttered toast","Ripe peach","Wet stone"],
+   c:0, e:"Mostly acetic acid + ethyl acetate; a touch can lift aromatics, a lot smells like vinegar."},
+  {cat:"History", d:3, q:"Which grape powers classic carbonic-maceration Beaujolais?",
+   a:["Gamay","Nebbiolo","Riesling","Tempranillo"],
+   c:0, e:"Gamay in Beaujolais — the spiritual home of glou-glou carbonic reds."},
+  {cat:"Method", d:3, q:"A ‘pied de cuve’ is…",
+   a:["A wild-yeast starter made from a small early-picked batch of must","A type of basket press","A steep vineyard slope","A barrel size"],
+   c:0, e:"Producers ferment a little must first, then use it to safely kick off the main wild ferment."},
+  {cat:"History", d:3, q:"In Friuli, coppery skin-contact Pinot Grigio is traditionally called…",
+   a:["Ramato","Recioto","Passito","Spumante"],
+   c:0, e:"‘Ramato’ means coppery — Friuli's old skin-contact style of Pinot Grigio."},
+  {cat:"Method", d:3, q:"Ancestral method differs from ‘traditional method’ because it has…",
+   a:["Only one fermentation, finished in the bottle","A mandatory second ferment with added yeast & sugar","Always far more residual sugar","Always much more sulphur"],
+   c:0, e:"Champagne's traditional method adds a second ferment; pét-nat's ancestral method does not."},
 ];
 const pick=a=>a[Math.floor(Math.random()*a.length)];
+let lastCat=null;
+function pickQuestion(){
+  const correct=state.quizCorrect||0;
+  const maxD = correct<5 ? 1 : correct<14 ? 2 : 3;          // harder as you learn
+  let pool=QUIZ.filter(q=>q.d<=maxD);
+  const fresh=pool.filter(q=>q.cat!==lastCat);              // avoid same category twice
+  if(fresh.length) pool=fresh;
+  const weighted=[];                                       // bias toward the hardest unlocked tier
+  pool.forEach(q=>{ const w=q.d===maxD?3:q.d===maxD-1?2:1; for(let i=0;i<w;i++) weighted.push(q); });
+  const q=pick(weighted.length?weighted:pool);
+  lastCat=q.cat;
+  return q;
+}
 
 /* ---------- State ---------- */
 let state, buyMode="1", muted=false, activeTab="cellar";
@@ -829,11 +892,17 @@ function scheduleClient(){ clearTimeout(quizT); quizT=setTimeout(spawnClient, ra
 function spawnClient(){
   if(quizActive){ scheduleClient(); return; }
   quizActive=true;
-  const client=pick(CLIENTS), q=pick(QUIZ);
+  const client=pick(CLIENTS), q=pickQuestion();
   $("guestAvatar").textContent=client.av;
   $("guestName").textContent=client.name;
   $("guestQ").textContent=client.line+" "+q.q;
+  const diffName=q.d===1?"Easy":q.d===2?"Medium":"Hard";
+  const stars="★".repeat(q.d)+"☆".repeat(3-q.d);
+  $("guestMeta").innerHTML=`<span class="chip-cat">${q.cat}</span><span class="chip-diff">${diffName} ${stars}</span>`;
   $("guestResult").classList.add("hidden");
+  // the guest also appears "at the door" in the bar scene
+  $("doorEmoji").textContent=client.av;
+  $("door").classList.remove("hidden");
   const opts=$("guestOptions"); opts.innerHTML="";
   const order=q.a.map((_,i)=>i).sort(()=>Math.random()-0.5);   // shuffle answers
   order.forEach(i=>{
@@ -862,7 +931,8 @@ function answerClient(btn,correct,q,opts){
   let gain;
   if(correct){
     state.quizCorrect=(state.quizCorrect||0)+1;
-    gain=Math.max(60*cps(), clickValue()*50, state.glou*0.05, 100);
+    const dMult = q.d===3 ? 4 : q.d===2 ? 2 : 1;          // harder question → fatter tip
+    gain=Math.max(60*cps(), clickValue()*50, state.glou*0.05, 100) * dMult;
     sndPerfect();
   } else {
     gain=Math.max(8*cps(), clickValue()*6, 10);
@@ -871,7 +941,7 @@ function answerClient(btn,correct,q,opts){
   state.glou+=gain; state.run+=gain; state.life+=gain;
   checkAch();
   const res=$("guestResult"); res.classList.remove("hidden");
-  res.innerHTML=(correct?"<b>Correct! 🍷</b> ":"<b>Not quite.</b> ")+q.e+
+  res.innerHTML=(correct?`<b>Correct! 🍷</b> ${q.d===3?"Tough one — ":""}`:"<b>Not quite.</b> ")+q.e+
     `<br><span style="color:var(--green);font-weight:700">+${fmt(gain)} ₲${correct?" tip":" (they tipped anyway)"}</span>`;
   toast(correct?"🧠 Nailed the question!":"😅 Close one","+"+fmt(gain)+" ₲");
   updateTop();
@@ -886,6 +956,7 @@ function timeoutClient(){
 }
 function dismissClient(){
   $("guestCard").classList.add("hidden");
+  $("door").classList.add("hidden");
   quizActive=false;
   scheduleClient();
 }
@@ -968,6 +1039,10 @@ function init(){
   requestAnimationFrame(meterLoop);
   scheduleGolden();
   scheduleClient();
+  $("door").addEventListener("click",()=>{               // flash the guest card to draw the eye
+    const c=$("guestCard");
+    c.style.animation="none"; void c.offsetWidth; c.style.animation="guestIn .4s";
+  });
   // spacebar pours too (ignore when typing in a field)
   document.addEventListener("keydown",e=>{
     if(e.code==="Space" && !/^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName)){
