@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Glou Glou — A Natural Wine Bar Game</title>
+<style>
+  /* ----------  Design tokens  ---------- */
+  :root{
+    --paper:#f4ead7;        /* warm cream label paper */
+    --paper-2:#ece0c6;
+    --ink:#2b1a12;          /* deep wine-stained ink */
+    --ink-soft:#6b5544;
+    --orange:#e08a2f;       /* skin-contact orange */
+    --orange-deep:#c66a1d;
+    --glou:#9c2a3b;         /* glou-glou red */
+    --glou-deep:#6f1626;
+    --plum:#5b2a52;
+    --gold:#d8a93a;
+    --green:#5a7d4a;
+    --sky:#7fa8b8;
+    --shadow:rgba(43,26,18,.18);
+    --radius:18px;
+    --font:"Georgia","Iowan Old Style",serif;
+    --font-disp:"Bodoni 72","Didot","Playfair Display",Georgia,serif;
+  }
+
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{
+    margin:0;
+    font-family:var(--font);
+    color:var(--ink);
+    background:
+      radial-gradient(1200px 700px at 80% -10%, #f7efe0 0%, transparent 60%),
+      radial-gradient(900px 600px at -10% 110%, #efe2c7 0%, transparent 55%),
+      linear-gradient(160deg,#f0e4cd 0%, #e7d8ba 100%);
+    background-attachment:fixed;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+
+  /* subtle paper grain */
+  body::before{
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.05;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  }
+
+  .wrap{
+    position:relative;z-index:1;
+    max-width:760px;margin:0 auto;padding:18px 16px 40px;
+    min-height:100%;display:flex;flex-direction:column;
+  }
+
+  /* ----------  Header / HUD  ---------- */
+  header{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:14px}
+  .brand{line-height:1}
+  .brand h1{
+    font-family:var(--font-disp);
+    font-size:clamp(30px,7vw,46px);
+    margin:0;letter-spacing:.5px;font-weight:800;font-style:italic;
+    color:var(--glou-deep);
+    text-shadow:1px 1px 0 #fff7;
+  }
+  .brand .tag{font-size:13px;color:var(--ink-soft);letter-spacing:3px;text-transform:uppercase;margin-top:4px}
+
+  .hud{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+  .chip{
+    background:var(--paper);border:1.5px solid #d8c6a3;border-radius:999px;
+    padding:6px 12px;font-size:14px;box-shadow:0 2px 0 var(--shadow);
+    display:flex;align-items:center;gap:6px;white-space:nowrap;
+  }
+  .chip b{font-variant-numeric:tabular-nums}
+  .hearts{letter-spacing:2px;font-size:16px}
+
+  /* ----------  Card / stage  ---------- */
+  .stage{
+    background:var(--paper);
+    border:2px solid #d8c6a3;
+    border-radius:var(--radius);
+    box-shadow:0 14px 30px -14px var(--shadow), inset 0 1px 0 #fff8;
+    padding:20px 18px;
+    position:relative;overflow:hidden;
+    flex:1;display:flex;flex-direction:column;
+  }
+  .stage::after{ /* wax seal corner accent */
+    content:"";position:absolute;top:-40px;right:-40px;width:120px;height:120px;
+    background:radial-gradient(circle at 50% 50%, var(--orange) 0 38%, transparent 39%);
+    opacity:.12;
+  }
+
+  /* Patience bar */
+  .patience-wrap{height:12px;background:#e2d2b1;border-radius:999px;overflow:hidden;margin-bottom:16px;border:1px solid #d3c09c}
+  .patience{height:100%;width:100%;border-radius:999px;
+    background:linear-gradient(90deg,var(--green),var(--gold));transition:width .12s linear,background .3s}
+  .patience.warn{background:linear-gradient(90deg,var(--gold),var(--orange))}
+  .patience.danger{background:linear-gradient(90deg,var(--orange-deep),var(--glou))}
+
+  /* Customer */
+  .customer{display:flex;gap:14px;align-items:flex-start;min-height:120px}
+  .avatar{
+    width:74px;height:74px;flex:0 0 auto;border-radius:50%;
+    display:grid;place-items:center;font-size:40px;
+    background:radial-gradient(circle at 35% 30%, #fff6, transparent 60%), var(--paper-2);
+    border:2px solid #d8c6a3;box-shadow:0 4px 0 var(--shadow);
+    animation:bob 2.4s ease-in-out infinite;
+  }
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+  .speech{
+    position:relative;background:#fff;border:2px solid #e6d6b4;border-radius:16px;
+    padding:12px 14px;flex:1;box-shadow:0 3px 0 var(--shadow);
+  }
+  .speech::before{content:"";position:absolute;left:-9px;top:22px;width:0;height:0;
+    border:8px solid transparent;border-right-color:#e6d6b4}
+  .speech::after{content:"";position:absolute;left:-6px;top:23px;width:0;height:0;
+    border:7px solid transparent;border-right-color:#fff}
+  .speech .who{font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--orange-deep);font-weight:700;margin-bottom:3px}
+  .speech .ask{font-size:clamp(16px,3.6vw,19px);line-height:1.4}
+
+  .roundnote{margin:14px 0 6px;font-size:13px;color:var(--ink-soft);text-align:center;font-style:italic}
+
+  /* Cellar grid */
+  .cellar{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:auto;padding-top:14px}
+  @media(max-width:560px){.cellar{grid-template-columns:repeat(3,1fr)}}
+  @media(max-width:400px){.cellar{grid-template-columns:repeat(2,1fr)}}
+
+  .bottle{
+    cursor:pointer;border:2px solid #e0cfa9;border-radius:14px;background:#fffdf6;
+    padding:12px 8px 10px;text-align:center;position:relative;
+    transition:transform .12s ease, box-shadow .12s ease, border-color .12s;
+    box-shadow:0 3px 0 var(--shadow);user-select:none;
+  }
+  .bottle:hover{transform:translateY(-3px);box-shadow:0 8px 14px -6px var(--shadow);border-color:var(--orange)}
+  .bottle:active{transform:translateY(0) scale(.97)}
+  .bottle .ico{font-size:30px;line-height:1;display:block}
+  .bottle .nm{font-size:12.5px;font-weight:700;margin-top:6px;line-height:1.15}
+  .bottle .swatch{height:5px;border-radius:3px;margin:7px 6px 0}
+  .bottle.correct{animation:pop .4s;border-color:var(--green);background:#eef6e6}
+  .bottle.wrong{animation:shake .4s;border-color:var(--glou);background:#fbe9ec}
+  @keyframes pop{0%{transform:scale(1)}40%{transform:scale(1.12)}100%{transform:scale(1)}}
+  @keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-6px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(4px)}}
+
+  /* Toast feedback */
+  .toast{
+    position:absolute;left:50%;top:46%;transform:translate(-50%,-50%) scale(.8);
+    background:var(--ink);color:var(--paper);padding:14px 22px;border-radius:14px;
+    font-family:var(--font-disp);font-size:24px;font-style:italic;opacity:0;pointer-events:none;
+    box-shadow:0 10px 30px -8px #0007;text-align:center;z-index:5;max-width:86%;
+  }
+  .toast.show{animation:toast 1.1s ease forwards}
+  .toast small{display:block;font-family:var(--font);font-style:normal;font-size:13px;opacity:.85;margin-top:5px}
+  @keyframes toast{0%{opacity:0;transform:translate(-50%,-50%) scale(.8)}
+    15%{opacity:1;transform:translate(-50%,-50%) scale(1.05)}
+    75%{opacity:1;transform:translate(-50%,-55%) scale(1)}
+    100%{opacity:0;transform:translate(-50%,-70%) scale(1)}}
+
+  /* ----------  Overlays  ---------- */
+  .overlay{position:absolute;inset:0;background:rgba(244,234,215,.96);z-index:10;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    text-align:center;padding:26px;gap:14px}
+  .overlay h2{font-family:var(--font-disp);font-style:italic;color:var(--glou-deep);
+    font-size:clamp(26px,6vw,38px);margin:0}
+  .overlay p{margin:0;max-width:46ch;line-height:1.5;color:var(--ink-soft);font-size:15.5px}
+  .btn{
+    cursor:pointer;border:none;font-family:var(--font-disp);font-style:italic;font-weight:700;
+    font-size:20px;color:#fff7e8;background:linear-gradient(160deg,var(--glou),var(--glou-deep));
+    padding:13px 30px;border-radius:999px;box-shadow:0 6px 0 var(--glou-deep), 0 12px 20px -8px var(--shadow);
+    transition:transform .08s, box-shadow .08s;letter-spacing:.5px;
+  }
+  .btn:active{transform:translateY(4px);box-shadow:0 2px 0 var(--glou-deep)}
+  .btn.alt{background:linear-gradient(160deg,var(--orange),var(--orange-deep));box-shadow:0 6px 0 var(--orange-deep),0 12px 20px -8px var(--shadow)}
+  .hidden{display:none!important}
+
+  .glasses{font-size:54px;animation:cheers 1.6s ease-in-out infinite}
+  @keyframes cheers{0%,100%{transform:rotate(-8deg)}50%{transform:rotate(8deg)}}
+
+  .legend{display:flex;flex-wrap:wrap;gap:8px 14px;justify-content:center;max-width:520px;font-size:13px;color:var(--ink-soft)}
+  .legend span{display:flex;align-items:center;gap:5px}
+
+  .factcard{background:#fff;border:2px dashed #e2cfa3;border-radius:14px;padding:14px 16px;max-width:48ch;font-size:14.5px;line-height:1.5}
+  .factcard b{color:var(--orange-deep)}
+
+  .scorebig{font-family:var(--font-disp);font-size:54px;font-style:italic;color:var(--glou-deep);line-height:1}
+  .rank{font-size:18px;font-weight:700}
+
+  .topbtns{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+
+  .mute{cursor:pointer;background:none;border:none;font-size:18px;opacity:.6}
+  .mute:hover{opacity:1}
+  footer{text-align:center;font-size:12px;color:var(--ink-soft);margin-top:14px;opacity:.8}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <h1>Glou&nbsp;Glou</h1>
+      <div class="tag">Natural Wine Bar</div>
+    </div>
+    <div class="hud">
+      <div class="chip">🍇 <b id="score">0</b></div>
+      <div class="chip">🔥 <b id="combo">0</b>×</div>
+      <div class="chip hearts" id="hearts">❤️❤️❤️</div>
+      <button class="mute chip" id="mute" title="Sound on/off">🔊</button>
+    </div>
+  </header>
+
+  <div class="stage" id="stage">
+
+    <!-- START SCREEN -->
+    <div class="overlay" id="startScreen">
+      <div class="glasses">🍷🥂</div>
+      <h2>Welcome to the natty bar</h2>
+      <p>Thirsty regulars roll in with very specific vibes. Read what they want,
+         pour them the right low-intervention bottle before their patience runs dry,
+         and stack up a combo. Three bad pours and the night's over.</p>
+      <div class="factcard">
+        <b>Natural wine, fast:</b> grapes farmed organically/biodynamically, fermented with
+        wild yeast, nothing added, nothing taken away — little to no added sulphites.
+        Often cloudy, funky, and gloriously alive. 🌱
+      </div>
+      <div class="topbtns">
+        <button class="btn" id="playBtn">Open the bar</button>
+        <button class="btn alt" id="howBtn">How to play</button>
+      </div>
+    </div>
+
+    <!-- HOW TO PLAY -->
+    <div class="overlay hidden" id="howScreen">
+      <h2>How to pour</h2>
+      <p>Each guest describes a <b>mood, occasion, or pairing</b>. Tap the bottle from your
+         cellar that fits best. Match the colour swatch and the style to their ask.
+         The faster you pour, the bigger the tip — and your combo multiplier grows with every
+         correct pour in a row. Let the patience bar empty and you lose a heart.</p>
+      <div class="legend" id="legendBox"></div>
+      <button class="btn" id="backBtn">Got it</button>
+    </div>
+
+    <!-- GAME OVER -->
+    <div class="overlay hidden" id="endScreen">
+      <h2 id="endTitle">Last call 🍷</h2>
+      <div class="scorebig" id="endScore">0</div>
+      <div class="rank" id="endRank"></div>
+      <p id="endBest"></p>
+      <div class="factcard" id="endFact"></div>
+      <button class="btn" id="againBtn">Pour again</button>
+    </div>
+
+    <!-- GAMEPLAY -->
+    <div id="game" class="hidden" style="display:flex;flex-direction:column;flex:1">
+      <div class="patience-wrap"><div class="patience" id="patience"></div></div>
+      <div class="customer">
+        <div class="avatar" id="avatar">🧑</div>
+        <div class="speech">
+          <div class="who" id="who">a regular</div>
+          <div class="ask" id="ask">…</div>
+        </div>
+      </div>
+      <div class="roundnote" id="roundnote">Round 1 · serve 'em up</div>
+      <div class="cellar" id="cellar"></div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+  </div>
+
+  <footer>Made with 🍇 for a natural wine lover · tap a bottle to serve</footer>
+</div>
+
+<script>
+/* ============================================================
+   GLOU GLOU — a tiny natural-wine serving game
+   ============================================================ */
+
+/* ---- The cellar: real natural-wine styles ---- */
+const WINES = [
+  { id:"petnat",   ico:"🍾", nm:"Pét-Nat",        color:"#e8c84a",
+    tags:["sparkling","festive","cloudy","fun","white","pink"],
+    note:"Pétillant naturel — bottled mid-ferment, méthode ancestrale fizz." },
+  { id:"orange",   ico:"🟠", nm:"Skin-Contact",   color:"#e08a2f",
+    tags:["orange","funky","tannic","food","white","weird","structured"],
+    note:"White grapes macerated on their skins → orange, grippy, savoury." },
+  { id:"glouglou", ico:"🍒", nm:"Glou-Glou Red",  color:"#9c2a3b",
+    tags:["red","light","chillable","juicy","gulpable","fun","summer"],
+    note:"Light, low-tannin, chill-it red you can drink by the litre — glou glou!" },
+  { id:"carbonic", ico:"🍇", nm:"Carbonic Gamay", color:"#7b2d4a",
+    tags:["red","fruity","light","bright","summer","chillable","juicy"],
+    note:"Carbonic maceration: banana-bubblegum-bright, Beaujolais energy." },
+  { id:"bio",      ico:"🥂", nm:"Biodynamic White",color:"#cfd98c",
+    tags:["white","mineral","crisp","elegant","food","structured"],
+    note:"Farmed by the moon & cosmos — taut, mineral, food-loving." },
+  { id:"amphora",  ico:"🏺", nm:"Amphora / Qvevri",color:"#8a5a3c",
+    tags:["earthy","ancient","structured","orange","food","weird","tannic"],
+    note:"Fermented in buried clay — Georgia's 8,000-year-old method." },
+  { id:"piquette", ico:"💧", nm:"Piquette",        color:"#c79bb0",
+    tags:["low-abv","refreshing","spritz","summer","light","fun"],
+    note:"Re-soaked grape pomace → featherweight, spritzy, ~5% ABV thirst-killer." },
+  { id:"sanssoufre",ico:"🌱",nm:"Zéro Soufre",     color:"#a8c08a",
+    tags:["pure","delicate","red","white","light","funky"],
+    note:"No added sulphites at all — pure, fragile, drink-it-now poetry." },
+];
+
+/* ---- Customers & their asks. `need` = any matching tag wins ---- */
+const ASKS = [
+  { who:"Birthday girl",     av:"🥳", txt:"It's my birthday — give me something with BUBBLES!", need:["sparkling"] },
+  { who:"The hype kid",      av:"😎", txt:"Got anything orange and a little weird? Skin-contact, ideally.", need:["orange"] },
+  { who:"Heatwave Henri",    av:"🥵", txt:"Brutal day out. I want a red I can chill down and just gulp.", need:["chillable","gulpable"] },
+  { who:"Designated driver", av:"🚗", txt:"I'm driving later — keep it light and low in alcohol.", need:["low-abv"] },
+  { who:"Charcuterie Claire", av:"🧀", txt:"Building a big cheese & meat board. I want tannin and grip.", need:["tannic","structured"] },
+  { who:"The romantic",      av:"🥰", txt:"Date night. Something elegant, mineral and crisp.", need:["mineral","elegant"] },
+  { who:"History buff",      av:"📜", txt:"Surprise me with the most ancient way to make wine.", need:["ancient"] },
+  { who:"Purist Paolo",      av:"🧘", txt:"Absolutely zero additives. Nothing added, nothing at all.", need:["pure"] },
+  { who:"Festival friend",   av:"🎉", txt:"We're celebrating — give me FUN in a glass!", need:["festive","fun"] },
+  { who:"Spritz seeker",     av:"☀️", txt:"Patio season. I want something spritzy and refreshing.", need:["spritz","refreshing"] },
+  { who:"Funk chaser",       av:"🤘", txt:"The funkier and weirder, the better. Hit me.", need:["funky","weird"] },
+  { who:"Juicy Jules",       av:"🍓", txt:"I want a bright, fruity, light red. Total juice-bomb.", need:["fruity","juicy"] },
+  { who:"Foodie Fern",       av:"🍜", txt:"Bringing dinner. I need something food-friendly and savoury.", need:["food"] },
+  { who:"Pink please",       av:"🌸", txt:"Something pretty and pink to start the night?", need:["pink"] },
+  { who:"Summer Sam",        av:"🏖️", txt:"Beach vibes only — light, summery, easygoing.", need:["summer"] },
+];
+
+/* ---- Ranks by score ---- */
+const RANKS = [
+  [0,   "Thirsty Apprentice 🍇"],
+  [40,  "Bottle Shop Browser 🛒"],
+  [90,  "Glou-Glou Believer 🍒"],
+  [160, "Skin-Contact Sommelier 🟠"],
+  [250, "Pét-Nat Whisperer 🍾"],
+  [380, "Low-Intervention Legend 🌱"],
+];
+
+const FACTS = [
+  "“Glou glou” is French slang for the gulping sound of an easy, juicy wine — so good you can't stop.",
+  "Pét-Nat is bottled before fermentation finishes, so the bubbles are 100% natural — no added fizz.",
+  "Orange wine isn't made from oranges: it's white grapes left on their skins, like a red.",
+  "Qvevri winemaking in Georgia is on UNESCO's list — it's roughly 8,000 years old.",
+  "Many natural winemakers add zero or barely-there sulphites, which is why the wines feel so alive.",
+  "Piquette is the thrifty, low-alcohol 'wine of the workers' — made from grapes that were already pressed.",
+  "Biodynamics treats the vineyard as one living organism, following a cosmic/lunar calendar.",
+  "Carbonic maceration ferments whole grapes inside their own skins, giving that bright bubblegum lift.",
+];
+
+/* ---- State ---- */
+let score=0, combo=0, hearts=3, round=1, served=0;
+let current=null, correctIds=[];
+let timer=null, patience=100, patienceMax=100, drainPerTick=0;
+let muted=false, running=false;
+
+/* ---- Elements ---- */
+const $=id=>document.getElementById(id);
+const cellarEl=$("cellar"), patienceEl=$("patience");
+const scoreEl=$("score"), comboEl=$("combo"), heartsEl=$("hearts");
+const askEl=$("ask"), whoEl=$("who"), avatarEl=$("avatar"), roundnoteEl=$("roundnote");
+const toastEl=$("toast");
+
+/* ---- Sound (tiny WebAudio blips, no files) ---- */
+let actx=null;
+function beep(freq,dur=0.12,type="sine",vol=0.12){
+  if(muted) return;
+  try{
+    actx=actx||new (window.AudioContext||window.webkitAudioContext)();
+    const o=actx.createOscillator(), g=actx.createGain();
+    o.type=type;o.frequency.value=freq;o.connect(g);g.connect(actx.destination);
+    g.gain.setValueAtTime(vol,actx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001,actx.currentTime+dur);
+    o.start();o.stop(actx.currentTime+dur);
+  }catch(e){}
+}
+const sndGood=()=>{beep(660,.09,"triangle");setTimeout(()=>beep(880,.12,"triangle"),70);};
+const sndBad =()=>{beep(180,.22,"sawtooth",.1);};
+const sndPour=()=>{beep(420,.05,"sine",.06);};
+
+/* ---- Build the cellar buttons ---- */
+function renderCellar(){
+  cellarEl.innerHTML="";
+  WINES.forEach(w=>{
+    const b=document.createElement("button");
+    b.className="bottle";b.dataset.id=w.id;
+    b.innerHTML=`<span class="ico">${w.ico}</span>
+      <span class="nm">${w.nm}</span>
+      <span class="swatch" style="background:${w.color}"></span>`;
+    b.addEventListener("click",()=>serve(w,b));
+    cellarEl.appendChild(b);
+  });
+}
+
+/* ---- Legend on the How-to screen ---- */
+function renderLegend(){
+  $("legendBox").innerHTML = WINES.map(w=>
+    `<span>${w.ico} <b style="color:var(--ink)">${w.nm}</b></span>`).join("");
+}
+
+/* ---- Round / difficulty curve ---- */
+function difficulty(){
+  // patience seconds shrink as rounds climb; floor at ~3.2s
+  const secs = Math.max(3.2, 8.5 - (round-1)*0.45);
+  patienceMax = secs;
+  drainPerTick = 100/(secs*20); // ticks at 50ms => 20/sec
+}
+
+function nextCustomer(){
+  if(!running) return;
+  difficulty();
+  current = ASKS[Math.floor(Math.random()*ASKS.length)];
+  correctIds = WINES.filter(w=> w.tags.some(t=>current.need.includes(t))).map(w=>w.id);
+  // safety: if no match (shouldn't happen), reroll
+  if(correctIds.length===0){return nextCustomer();}
+  whoEl.textContent=current.who;
+  askEl.textContent=current.txt;
+  avatarEl.textContent=current.av;
+  roundnoteEl.textContent=`Round ${round} · ${served} served · be quick for a bigger tip`;
+  // reset patience
+  patience=100;
+  patienceEl.style.width="100%";
+  patienceEl.className="patience";
+  startTimer();
+}
+
+function startTimer(){
+  clearInterval(timer);
+  timer=setInterval(()=>{
+    patience-=drainPerTick;
+    if(patience<=0){patience=0;patienceEl.style.width="0%";clearInterval(timer);timeout();return;}
+    patienceEl.style.width=patience+"%";
+    patienceEl.className="patience"+(patience<25?" danger":patience<55?" warn":"");
+  },50);
+}
+
+function serve(w,btnEl){
+  if(!running||!current) return;
+  sndPour();
+  const ok = correctIds.includes(w.id);
+  if(ok){
+    clearInterval(timer);
+    combo++;
+    const speedBonus=Math.round(patience/10);      // 0-10
+    const comboBonus=Math.min(combo,8);
+    const gain=10+speedBonus+comboBonus;
+    score+=gain;
+    served++;
+    btnEl.classList.add("correct");
+    sndGood();
+    const lines=["Santé! 🥂","Glou glou! 🍷","Perfect pour!","Funky & flawless!","They love it!","Natty magic ✨","Big tip! 💸"];
+    showToast(lines[Math.floor(Math.random()*lines.length)], `+${gain}  ·  ${combo}× combo`);
+    updateHUD();
+    if(served % 5 === 0) round++;
+    setTimeout(()=>{btnEl.classList.remove("correct");nextCustomer();},520);
+  }else{
+    btnEl.classList.add("wrong");
+    sndBad();
+    combo=0;
+    loseHeart(`Not quite — they wanted ${current.need[0]}.`);
+    setTimeout(()=>btnEl.classList.remove("wrong"),420);
+    updateHUD();
+  }
+}
+
+function timeout(){
+  if(!running) return;
+  combo=0;
+  loseHeart("Too slow — they wandered off to the next bar. 🚪");
+  updateHUD();
+}
+
+function loseHeart(msg){
+  hearts--;
+  updateHUD();
+  if(hearts<=0){
+    showToast("Last call 🍷", msg);
+    setTimeout(gameOver,650);
+  }else{
+    showToast("Oops!", msg);
+    setTimeout(()=>{ if(running) nextCustomer(); },680);
+  }
+}
+
+function showToast(big,small){
+  toastEl.innerHTML=big+(small?`<small>${small}</small>`:"");
+  toastEl.classList.remove("show");void toastEl.offsetWidth;
+  toastEl.classList.add("show");
+}
+
+function updateHUD(){
+  scoreEl.textContent=score;
+  comboEl.textContent=combo;
+  heartsEl.textContent="❤️".repeat(Math.max(0,hearts))+"🖤".repeat(Math.max(0,3-hearts));
+}
+
+function rankFor(s){let r=RANKS[0][1];for(const [t,n] of RANKS){if(s>=t)r=n;}return r;}
+
+/* ---- Game flow ---- */
+function startGame(){
+  score=0;combo=0;hearts=3;round=1;served=0;running=true;
+  updateHUD();
+  hideAll();$("game").classList.remove("hidden");
+  nextCustomer();
+}
+
+function gameOver(){
+  running=false;clearInterval(timer);
+  const best=Number(localStorage.getItem("glouglou_best")||0);
+  const isBest=score>best;
+  if(isBest) localStorage.setItem("glouglou_best",score);
+  $("endScore").textContent=score;
+  $("endRank").textContent=rankFor(score);
+  $("endBest").textContent = isBest
+    ? "🏆 New personal best! You're cooking."
+    : `Best night so far: ${best} pts.`;
+  $("endTitle").textContent = score>=160 ? "Bar's buzzing! 🍷" : "Last call 🍷";
+  $("endFact").innerHTML = "<b>Did you know?</b> "+FACTS[Math.floor(Math.random()*FACTS.length)];
+  hideAll();$("endScreen").classList.remove("hidden");
+}
+
+function hideAll(){
+  ["startScreen","howScreen","endScreen","game"].forEach(i=>$(i).classList.add("hidden"));
+}
+
+/* ---- Wire up ---- */
+renderCellar();
+renderLegend();
+$("playBtn").addEventListener("click",startGame);
+$("againBtn").addEventListener("click",startGame);
+$("howBtn").addEventListener("click",()=>{hideAll();$("howScreen").classList.remove("hidden");});
+$("backBtn").addEventListener("click",()=>{hideAll();$("startScreen").classList.remove("hidden");});
+$("mute").addEventListener("click",()=>{muted=!muted;$("mute").textContent=muted?"🔇":"🔊";});
+
+/* keyboard: 1-8 to pour */
+document.addEventListener("keydown",e=>{
+  if(!running) return;
+  const n=parseInt(e.key,10);
+  if(n>=1&&n<=WINES.length){
+    const btn=cellarEl.children[n-1];
+    btn&&btn.click();
+  }
+});
+</script>
+</body>
+</html>
