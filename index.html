@@ -85,6 +85,33 @@
   @keyframes floaty{0%{opacity:0;transform:translate(-50%,0) scale(.8)}
     20%{opacity:1}100%{opacity:0;transform:translate(-50%,-70px) scale(1.1)}}
 
+  /* Perfect-pour timing meter (inside the pour button) */
+  .meter{position:relative;display:block;height:14px;margin:12px 6px 0;border-radius:999px;
+    background:rgba(255,255,255,.22);overflow:hidden;border:1px solid rgba(255,255,255,.35)}
+  .meter .zone{position:absolute;top:0;bottom:0}
+  .zone-good{left:34%;width:32%;background:rgba(255,255,255,.32)}
+  .zone-perfect{left:46%;width:8%;background:var(--gold);box-shadow:0 0 8px var(--gold)}
+  .marker{position:absolute;top:-2px;bottom:-2px;width:4px;left:50%;
+    background:#fff;border-radius:2px;box-shadow:0 0 7px #fff}
+  .streak{text-align:center;font-size:13px;color:var(--orange-deep);min-height:18px;
+    margin-top:7px;font-weight:700;font-family:var(--font-disp);font-style:italic}
+
+  /* Golden "Glou Glou" bottle */
+  .golden{position:fixed;left:0;top:30vh;font-size:46px;cursor:pointer;z-index:50;user-select:none;
+    filter:drop-shadow(0 0 12px var(--gold));animation:drift linear forwards;will-change:transform}
+  @keyframes drift{
+    0%{transform:translate(-12vw,0) rotate(0deg);opacity:0}
+    8%{opacity:1}92%{opacity:1}
+    100%{transform:translate(112vw,-10vh) rotate(40deg);opacity:0}}
+
+  /* Frenzy banner */
+  .frenzy-banner{position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:35;
+    background:linear-gradient(90deg,var(--glou),var(--orange));color:#fff7e8;
+    padding:8px 18px;border-radius:999px;font-family:var(--font-disp);font-style:italic;
+    box-shadow:0 6px 16px -6px #0007;font-size:15px;letter-spacing:.5px;
+    animation:pulseB 1s ease-in-out infinite}
+  @keyframes pulseB{0%,100%{transform:translateX(-50%) scale(1)}50%{transform:translateX(-50%) scale(1.05)}}
+
   /* Right: tabs + shop */
   .tabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
   .tab{cursor:pointer;border:1.5px solid #d8c6a3;background:var(--paper-2);border-radius:999px;
@@ -170,9 +197,11 @@
       <div class="bar-scene" id="barScene">🏠</div>
       <div class="glou-big"><span id="glou">0</span> ₲</div>
       <div class="cps" id="cps">0 ₲ / sec</div>
-      <button class="pour" id="pourBtn">Pour a glass
-        <small id="perClick">+1 ₲ per pour</small>
+      <button class="pour" id="pourBtn"><span style="display:block">Pour a glass</span>
+        <small id="perClick">+1 ₲ · time it for the gold!</small>
+        <span class="meter"><span class="zone zone-good"></span><span class="zone zone-perfect"></span><span class="marker" id="marker"></span></span>
       </button>
+      <div class="streak" id="streak"></div>
       <button class="prestige" id="prestigeBtn" disabled>Declare a New Vintage</button>
       <div class="terroir" id="terroir">Terroir points: <b>0 ★</b></div>
 
@@ -207,6 +236,7 @@
 </div>
 
 <div class="toast" id="toast"></div>
+<div class="frenzy-banner hidden" id="frenzyBanner"></div>
 
 <!-- Welcome / offline overlay -->
 <div class="overlay hidden" id="overlay">
@@ -299,6 +329,9 @@ const ACH=[
 
 /* ---------- State ---------- */
 let state, buyMode="1", muted=false, activeTab="cellar";
+let streak=0, currentPos=50, markerEl=null, meterStart=0;     // perfect-pour meter
+let frenzy={prod:1,click:1,until:0}, goldT=null;              // golden-bottle frenzies
+const frenzyOn=()=>Date.now()<frenzy.until;
 
 function freshState(){
   const gen={}; GENS.forEach(g=>gen[g.id]=0);
@@ -344,6 +377,7 @@ function globalMult(){
   UPG.forEach(u=>{ if(u.type==="global" && state.upg[u.id]) m*=u.mult; });
   m*=(1+0.02*state.terroir);                  // terroir bonus
   m*=Math.pow(1.01, achCount());              // +1% per achievement
+  if(frenzyOn()) m*=frenzy.prod;              // golden-bottle production frenzy
   return m;
 }
 function clickMult(){
@@ -353,7 +387,7 @@ function clickMult(){
 }
 function genCps(g){ return g.rate*state.gen[g.id]*genMult(g)*globalMult(); }
 function cps(){ return GENS.reduce((a,g)=>a+genCps(g),0); }
-function clickValue(){ return 1*clickMult()*globalMult(); }
+function clickValue(){ return 1*clickMult()*globalMult()*(frenzyOn()?frenzy.click:1); }
 function achCount(){ return ACH.reduce((a,x)=>a+(state.ach[x.id]?1:0),0); }
 
 // cost of buying `k` of generator `g` given current owned count
@@ -389,11 +423,26 @@ function doPrestige(){
 
 /* ---------- Actions ---------- */
 function pour(ev){
-  const v=clickValue();
+  // score the timing: where is the marker right now?
+  const d=Math.abs(currentPos-50);
+  let label,mult;
+  if(d<=4){ label="Perfect Pour! "; mult=8; }
+  else if(d<=16){ label="Nice pour "; mult=3; }
+  else { label=""; mult=1; }
+  if(mult>1) streak++; else streak=0;
+  const streakBonus=1+Math.min(streak,20)*0.1;          // up to ×3 at a 20 streak
+  const v=clickValue()*mult*streakBonus;
   state.glou+=v; state.run+=v; state.life+=v; state.clicks++;
-  spawnFloat(ev,"+"+fmt(v));
-  sndPour();
+  spawnFloat(ev, label+"+"+fmt(v));
+  if(mult>=8) sndPerfect(); else if(mult>=3) sndBuy(); else sndPour();
+  updateStreak();
   updateTop();
+}
+function updateStreak(){
+  const el=$("streak"); if(!el) return;
+  el.textContent = streak>=2
+    ? `🔥 ${streak} pour streak · +${Math.round(Math.min(streak,20)*10)}% per pour`
+    : "";
 }
 function buyGen(g){
   const k=buyQty(g), price=costOf(g,k);
@@ -528,7 +577,7 @@ function updateTop(){
   $("s_cps").textContent=fmt(c);
   $("s_click").textContent=fmt(clickValue());
   $("s_bonus").textContent="+"+(state.terroir*2)+"%";
-  $("perClick").textContent="+"+fmt(clickValue())+" ₲ per pour";
+  $("perClick").textContent="+"+fmt(clickValue())+" ₲ base · hit the gold!";
   // prestige button
   const pend=pendingTerroir();
   const pb=$("prestigeBtn");
@@ -563,6 +612,7 @@ function tick(){
   if(gain>0){ state.glou+=gain; state.run+=gain; state.life+=gain; }
   checkAch();
   updateTop();
+  updateFrenzy();
   // light per-tick affordability refresh
   if(activeTab==="cellar") updateCellar();
   else if(activeTab==="upgrades") renderUpgrades();
@@ -610,6 +660,54 @@ function spawnFloat(ev,txt){
   btn.appendChild(f); setTimeout(()=>f.remove(),1000);
 }
 
+/* ---------- Perfect-pour meter (sweeping marker) ---------- */
+function meterLoop(ts){
+  if(!meterStart) meterStart=ts;
+  const P=Math.max(700, 1500 - Math.min(streak,18)*42);   // faster as your streak grows
+  const phase=((ts-meterStart)%P)/P;
+  currentPos=(phase<0.5 ? phase*2 : 2-phase*2)*100;        // triangle wave 0..100
+  if(markerEl) markerEl.style.left=currentPos+"%";
+  requestAnimationFrame(meterLoop);
+}
+
+/* ---------- Golden "Glou Glou" bottles ---------- */
+const rand=(a,b)=>a+Math.random()*(b-a);
+function scheduleGolden(){ clearTimeout(goldT); goldT=setTimeout(spawnGolden, rand(40,80)*1000); }
+function spawnGolden(){
+  const el=document.createElement("div");
+  el.className="golden"; el.textContent=Math.random()<0.5?"🍾":"🌟";
+  el.style.top=rand(12,72)+"vh";
+  el.style.animationDuration=rand(9,13)+"s";
+  let done=false;
+  const finish=hit=>{ if(done) return; done=true; el.remove(); if(hit) rewardGolden(); scheduleGolden(); };
+  el.addEventListener("click",()=>finish(true));
+  el.addEventListener("animationend",()=>finish(false));
+  document.body.appendChild(el);
+}
+function rewardGolden(){
+  const roll=Math.random(), now=Date.now();
+  if(roll<0.5){
+    const gain=Math.max(13*cps(), 0.15*state.glou, clickValue()*25, 50);
+    state.glou+=gain; state.run+=gain; state.life+=gain;
+    toast("🍾 Glou Glou! Lucky pour","+"+fmt(gain)+" ₲");
+  } else if(roll<0.8){
+    frenzy={prod:7,click:7,until:now+15000};
+    toast("🔥 Glou Glou Frenzy!","All production ×7 for 15s");
+  } else {
+    frenzy={prod:1,click:77,until:now+13000};
+    toast("🌟 Tasting Frenzy!","Pours ×77 for 13s");
+  }
+  sndAch(); checkAch(); updateTop(); updateFrenzy();
+}
+function updateFrenzy(){
+  const b=$("frenzyBanner");
+  if(frenzyOn()){
+    const s=((frenzy.until-Date.now())/1000).toFixed(1);
+    b.textContent=(frenzy.click>=77 ? "🌟 Tasting Frenzy ×77" : "🔥 Glou Glou Frenzy ×7")+" · "+s+"s";
+    b.classList.remove("hidden");
+  } else b.classList.add("hidden");
+}
+
 /* ---------- Sound (tiny WebAudio, carried from Glou Glou) ---------- */
 let actx=null;
 function beep(freq,dur=0.1,type="sine",vol=0.1){
@@ -624,6 +722,7 @@ function beep(freq,dur=0.1,type="sine",vol=0.1){
   }catch(e){}
 }
 const sndPour=()=>beep(360+Math.random()*60,.05,"sine",.05);
+const sndPerfect=()=>{[784,1047,1319].forEach((f,i)=>setTimeout(()=>beep(f,.1,"triangle",.12),i*55));};
 const sndBuy =()=>{beep(523,.07,"triangle");setTimeout(()=>beep(784,.09,"triangle"),60);};
 const sndUpg =()=>{beep(659,.08,"triangle");setTimeout(()=>beep(988,.12,"triangle"),70);};
 const sndAch =()=>{[523,659,784,1047].forEach((f,i)=>setTimeout(()=>beep(f,.12,"triangle"),i*80));};
@@ -681,6 +780,15 @@ function init(){
     updateCellar();
   }));
   $("pourBtn").addEventListener("click",pour);
+  markerEl=$("marker");
+  requestAnimationFrame(meterLoop);
+  scheduleGolden();
+  // spacebar pours too (ignore when typing in a field)
+  document.addEventListener("keydown",e=>{
+    if(e.code==="Space" && !/^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName)){
+      e.preventDefault(); pour();
+    }
+  });
   $("prestigeBtn").addEventListener("click",doPrestige);
   $("exportBtn").addEventListener("click",exportSave);
   $("importBtn").addEventListener("click",importSave);
@@ -692,8 +800,11 @@ function init(){
   else showModal(`
     <h2>Welcome to Vin Vivant 🍇</h2>
     <p>You've got an empty room and a dream: build the world's most beloved
-    <b>natural wine</b> bar. Pour glasses by hand to earn ₲, then invest in low-intervention
+    <b>natural wine</b> bar. Pour glasses to earn ₲, then invest in low-intervention
     bottles — from humble piquette to a living vineyard estate — that pour for you automatically.</p>
+    <p>Pouring is a <b>timing game</b>: tap when the sweeping marker hits the gold zone for a
+    <b>Perfect Pour</b> and build a streak. Keep an eye out for golden <b>🍾 Glou Glou bottles</b>
+    drifting by — click them for big bonuses and frenzies!</p>
     <p>Unlock upgrades, chase achievements, and when you're ready, declare a
     <b>New Vintage</b> to reset for permanent terroir bonuses. Santé!</p>
     <button class="btn" id="okBtn">Open the bar</button>`);
